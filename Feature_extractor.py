@@ -49,7 +49,9 @@ def extract_features(pcap_file):
     
     video_name = os.path.basename(pcap_file)
     filename = video_name[:-5]
-    print("We are analysing "+filename)
+    print()
+    print("Analysing "+filename)
+    print()
     total_bytes = 0
     start_time = None
     end_time = None
@@ -110,11 +112,20 @@ def extract_features(pcap_file):
         'bitrate': bitrate
         }
         
+        print(f"Analysis complete, feature extracted for {filename} are:")
+        print(csvstor)
+        
+        print()
+
         out_csv = filename +".csv"
         append_to_csv(out_csv, csvstor)
         
+        
         destination_path = "/home/best/Desktop/EEE4022S/Data/training_data/"
         shutil.move(out_csv, destination_path)
+        
+        print(f"Moving {out_csv} to {destination_path}")
+        print()
         return bitrate
     else:
         return None
@@ -141,9 +152,11 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
             list(executor.map(extract_features, undone_files))
         else:
             print("All files have been done")
+        
 
-    
-
+print()
+print("All files feature extraction complete")
+print()
 
 
 

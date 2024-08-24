@@ -6,6 +6,19 @@ import os
 import time
 import shutil
 
+def delete_directories(directory):
+    # Loop through all items in the specified directory
+    for item in os.listdir(directory):
+        item_path = os.path.join(directory, item)
+        # Check if the item is a directory and ends with "30" or "p"
+        if os.path.isdir(item_path) and (item.endswith("30") or item.endswith("p")):
+            try:
+                # Delete the directory and all its contents
+                shutil.rmtree(item_path)
+                print(f"Deleted directory: {item_path}")
+            except Exception as e:
+                print(f"Error deleting {item_path}: {e}")
+
 def check_file_size(file_path):
     # Get the size of the file in bytes
     file_size = os.path.getsize(file_path)
@@ -114,6 +127,7 @@ if __name__ == '__main__':
                 
         elif os.path.isfile(os.path.join(directory, filename)):
             setup_mininet_and_transmit(video_file)
+            print()
             #os.system("sudo mn -c")
     
     
@@ -130,9 +144,11 @@ if __name__ == '__main__':
                 print("Recapturing")
                 os.system(f"rm {file}")
                 setup_mininet_and_transmit(video_file)
+                print()
+
+delete_directories("/home/best/Desktop/EEE4022S/scripts")
                 
 os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/Feature_extractor.py")
-os.system("rmdir *p")
-os.system("rmdir *30")
+
     
     

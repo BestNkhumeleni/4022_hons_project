@@ -30,8 +30,8 @@ def encode_and_train(X,y, testing_data):
 
     # Evaluate the model
     print("Accuracy:", accuracy_score(y_test, y_pred))
-    print("Classification Report:")
-    print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
+    # print("Classification Report:")
+    # print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
     
     unseen_df = pd.read_csv(testing_data)
     unseen_features = unseen_df[['bitrate', 'num_bytes', 'num_packets', 'interval', 'packet_size']].mean(axis=0)
@@ -81,8 +81,8 @@ def extract_features(folder_path):
 
 
 training_data = "/home/best/Desktop/EEE4022S/Data/training_data/"
-testing_data = "/home/best/Desktop/EEE4022S/Data/testing_data/test_480p.csv"
+
+testing_data = "/home/best/Desktop/EEE4022S/Data/testing_data/testdata_1.csv"
+
 x,y = extract_features(training_data)
 encode_and_train(x,y,testing_data)
-# unseen_data(testing_data)
-#print(training_data)

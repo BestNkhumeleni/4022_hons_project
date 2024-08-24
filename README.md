@@ -5,4 +5,4 @@ Clone this repo and right outside of it, create a folder named Data, inside of t
 
 fill Raw data with the videos you wanna use as training material, use varying resolutions.
 
-run mininet_setup.py with sudo access and everthing from there should be automatic, at the end of the runtime you should have a fully trained ML model
+run mininet_setup.py with sudo access and everthing from there should be automatic, at the end of the runtime you should have a fully trained ML model.
