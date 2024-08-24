@@ -6,6 +6,16 @@ import os
 import time
 import shutil
 
+def check_file_size(file_path):
+    # Get the size of the file in bytes
+    file_size = os.path.getsize(file_path)
+    
+    # Convert size to megabytes (1 MB = 1024 * 1024 bytes)
+    size_in_mb = file_size / (1024 * 1024)
+    
+    # Check if the file size is less than 1 MB
+    return size_in_mb
+        
 def setup_mininet_and_transmit(video_file):
     # Create a network
     net = Mininet(controller=OVSController)
@@ -62,7 +72,7 @@ def setup_mininet_and_transmit(video_file):
     h1.cmd(f'cat {video_file} | nc 10.0.0.2 12345 &')
     
     # Wait for 30 seconds
-    time.sleep(30)
+    time.sleep(10)
     
     # Stop the tcpdump capture and video transmission
     info("*** Stopping video transmission and capture after 30 seconds ***\n")
@@ -70,8 +80,9 @@ def setup_mininet_and_transmit(video_file):
     #h1.cmd('pkill -f nc')
     #h2.cmd('pkill -f nc')
     
+    
     # Move the capture file to the folder
-    destination_path = "/home/best/Desktop/EEE4022S/Data/"+folder_name+"_packets"
+    destination_path = "/home/best/Desktop/EEE4022S/Data/"
     shutil.move(capture_file, destination_path)
     info(f"*** Moved capture file to {destination_path} ***\n")
     
@@ -82,19 +93,45 @@ def setup_mininet_and_transmit(video_file):
 if __name__ == '__main__':
     setLogLevel('info')
     
-    import os
-
     # Specify the directory path
     directory = '/home/best/Desktop/EEE4022S/Data/Raw_Videos'
-
+    destination_path = "/home/best/Desktop/EEE4022S/Data/"
+    files = [f for f in os.listdir(destination_path) if os.path.isfile(os.path.join(destination_path, f))]
+    
     # Loop through all the files in the directory
     for filename in os.listdir(directory):
+        video_file = directory +"/" + filename
         # Check if it's a file (not a directory)
-        if os.path.isfile(os.path.join(directory, filename)):
-            video_file = directory +"/" + filename
+        temp = filename[:-4] + ".pcap"
+        
+        if temp in files:
+            file = os.path.join(destination_path, temp)
+            if check_file_size(os.path.join(destination_path, temp)) > 1:
+                continue
+            else:
+                os.system(f"rm {file}")
+                
+        elif os.path.isfile(os.path.join(directory, filename)):
             setup_mininet_and_transmit(video_file)
-    os.system("rmdir *p")
-
+            #os.system("sudo mn -c")
     
+    
+    
+    for filename in os.listdir(destination_path):
+        # Check if it's a file (not a directory)
+        file = os.path.join(destination_path, filename)
+        if os.path.isfile(file):
+            while check_file_size(file)<1:
+                print()
+                print("There was a problem during capture for "+filename)
+                video_name = filename[:-5]
+                video_file = directory +"/" + video_name + ".mp4"
+                print("Recapturing")
+                os.system(f"rm {file}")
+                setup_mininet_and_transmit(video_file)
+                
+os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/Feature_extractor.py")
+os.system("rmdir *p")
+os.system("rmdir *30")
     
     
