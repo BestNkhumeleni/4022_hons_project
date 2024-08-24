@@ -82,7 +82,7 @@ def setup_mininet_and_transmit(video_file):
     
     
     # Move the capture file to the folder
-    destination_path = "/home/best/Desktop/EEE4022S/Data/"
+    destination_path = "/home/best/Desktop/EEE4022S/Data/pcap_files"
     shutil.move(capture_file, destination_path)
     info(f"*** Moved capture file to {destination_path} ***\n")
     
@@ -95,17 +95,18 @@ if __name__ == '__main__':
     
     # Specify the directory path
     directory = '/home/best/Desktop/EEE4022S/Data/Raw_Videos'
-    destination_path = "/home/best/Desktop/EEE4022S/Data/"
+    destination_path = "/home/best/Desktop/EEE4022S/Data/pcap_files"
     files = [f for f in os.listdir(destination_path) if os.path.isfile(os.path.join(destination_path, f))]
-    
+    #print(files)
     # Loop through all the files in the directory
     for filename in os.listdir(directory):
         video_file = directory +"/" + filename
         # Check if it's a file (not a directory)
         temp = filename[:-4] + ".pcap"
         
-        if temp in files:
+        if temp in files: #check if video has already been streamed succesfully
             file = os.path.join(destination_path, temp)
+            # print(f"{file}")
             if check_file_size(os.path.join(destination_path, temp)) > 1:
                 continue
             else:
@@ -121,7 +122,7 @@ if __name__ == '__main__':
         # Check if it's a file (not a directory)
         file = os.path.join(destination_path, filename)
         if os.path.isfile(file):
-            while check_file_size(file)<1:
+            while check_file_size(file)<1: #if it failed, keep trying until it doesnt
                 print()
                 print("There was a problem during capture for "+filename)
                 video_name = filename[:-5]
@@ -130,7 +131,7 @@ if __name__ == '__main__':
                 os.system(f"rm {file}")
                 setup_mininet_and_transmit(video_file)
                 
-os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/Feature_extractor.py")
+#os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/Feature_extractor.py")
 os.system("rmdir *p")
 os.system("rmdir *30")
     

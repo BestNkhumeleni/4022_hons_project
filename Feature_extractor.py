@@ -44,7 +44,7 @@ def append_to_csv(file_name, data):
 
 
 
-def get_bitrate(pcap_file):
+def extract_features(pcap_file):
     capture = pyshark.FileCapture(pcap_file)
     
     video_name = os.path.basename(pcap_file)
@@ -127,25 +127,9 @@ index = len(files)
 
 with concurrent.futures.ThreadPoolExecutor() as executor:
         # Map the get_bitrate function to the files in parallel
-        list(executor.map(get_bitrate, files))
+        
+        list(executor.map(extract_features, files))
 
-
-
-#os.system("sudo python3 mininet_setup.py")
-    # Loop through all the files in the directory
-# for filename in files:
-#     # Check if it's a file (not a directory)
-#     if os.path.isfile(os.path.join(directory, filename)):
-#         print()
-#         print("We are analysing "+filename)
-#         pcap_file = directory +"/" + filename
-#         bitrate = get_bitrate(pcap_file, filename)
-#         #fps = get_fps(pcap_file)
-#         if bitrate:
-#             print(f"Bitrate: {bitrate} bits per second")
-#             print(f"which is {bitrate/8} bytes per second")
-#         else:
-#             print("Unable to calculate bitrate")
     
 
 
