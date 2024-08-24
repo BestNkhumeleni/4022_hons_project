@@ -131,7 +131,7 @@ if __name__ == '__main__':
                 os.system(f"rm {file}")
                 setup_mininet_and_transmit(video_file)
                 
-#os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/Feature_extractor.py")
+os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/Feature_extractor.py")
 os.system("rmdir *p")
 os.system("rmdir *30")
     

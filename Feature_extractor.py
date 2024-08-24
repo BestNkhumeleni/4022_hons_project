@@ -119,16 +119,28 @@ def extract_features(pcap_file):
     else:
         return None
 
-directory_path = '/home/best/Desktop/EEE4022S/Data'
+directory_path = '/home/best/Desktop/EEE4022S/Data/pcap_files'
+destination_path = "/home/best/Desktop/EEE4022S/Data/training_data/"
 files = [os.path.join(directory_path, file) for file in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, file))]
 files.sort()
 
-index = len(files)
+#print(files)
+csvs = [f for f in os.listdir(destination_path) if os.path.isfile(os.path.join(destination_path, f))]
+csvs.sort()
+
+# os.path.basename
+undone_files = []
+for file in files:
+    fil = os.path.basename(file)[:-5] + ".csv" 
+    if fil not in csvs:
+        undone_files.append(file)
 
 with concurrent.futures.ThreadPoolExecutor() as executor:
         # Map the get_bitrate function to the files in parallel
-        
-        list(executor.map(extract_features, files))
+        if len(undone_files) != 0:
+            list(executor.map(extract_features, undone_files))
+        else:
+            print("All files have been done")
 
     
 
