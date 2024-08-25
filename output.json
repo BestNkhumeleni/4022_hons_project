@@ -1,0 +1,35 @@
+{
+    "I11": {
+        "segments": [
+            {
+                "bitrate": 0,
+                "codec": "aaclc",
+                "duration": 0,
+                "start": 0
+            }
+        ],
+        "streamId": 42
+    },
+    "I13": {
+        "segments": [
+            {
+                "bitrate": 18478.79313324669,
+                "codec": "h264",
+                "duration": 30,
+                "fps": 30,
+                "resolution": "1280x720",
+                "start": 0
+            }
+        ],
+        "streamId": 42
+    },
+    "I23": {
+        "stalling": [],
+        "streamId": 42
+    },
+    "IGen": {
+        "device": "pc",
+        "displaySize": "1920x1080",
+        "viewingDistance": "150cm"
+    }
+}

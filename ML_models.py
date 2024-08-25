@@ -7,13 +7,62 @@ from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelEncoder
 import re
-
-
 import cv2
 import subprocess
 import json
+import csv
+
 
 video_path = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/"
+
+def read_bitrate_from_csv(csv_file_path):
+    """Read the bitrate from the CSV file."""
+    with open(csv_file_path, 'r') as file:
+        reader = csv.DictReader(file)
+        bitrates = [float(row['bitrate']) for row in reader]
+        bitrate = bitrates[0] * 0.000125 
+    return bitrate
+
+def generate_json(resolution, fps, bitrate, duration, start):
+    data = {
+        "I11": {
+            "segments": [
+                {
+                    "bitrate": 0,
+                    "codec": "aaclc",
+                    "duration": 0,
+                    "start": 0
+                }
+            ],
+            "streamId": 42
+        },
+        "I13": {
+            "segments": [
+                {
+                    "bitrate": bitrate,
+                    "codec": "h264",
+                    "duration": duration,
+                    "fps": fps,
+                    "resolution": resolution,
+                    "start": start
+                }
+            ],
+            "streamId": 42
+        },
+        "I23": {
+            "stalling": [],
+            "streamId": 42
+        },
+        "IGen": {
+            "device": "pc",
+            "displaySize": "1920x1080",
+            "viewingDistance": "150cm"
+        }
+    }
+    
+    with open('output.json', 'w') as json_file:
+        json.dump(data, json_file, indent=4)
+
 
 def get_video_info(video_path):
     # Get video resolution and framerate using OpenCV
@@ -83,6 +132,8 @@ def random_forest_model_resolution(X,y, testing_data):
 
     print("Predicted Resolution:", predicted_label[0])
     print()
+    
+    return predicted_label[0]
 
 def extract_features_resolution(folder_path):
     # Initialize lists to hold the features and labels
@@ -202,11 +253,26 @@ def random_forest_model_fps(folder_path, testing_data):
     predicted_frame_rate = model.predict(unseen_features_scaled)
     print("Predicted Frame Rate:", predicted_frame_rate[0])
     print()
+    return predicted_frame_rate[0]
 
 training_data = "/home/best/Desktop/EEE4022S/Data/training_data/"
 testing_data = "/home/best/Desktop/EEE4022S/Data/testing_data/testdata_4.csv"
 
 
 x,y = extract_features_resolution(training_data)
-random_forest_model_resolution(x,y,testing_data)
-random_forest_model_fps(training_data, testing_data)
+res = random_forest_model_resolution(x,y,testing_data)
+fps = random_forest_model_fps(training_data, testing_data)
+bitrate = read_bitrate_from_csv(testing_data)
+
+#print(type(fps))
+if res == "720p":
+    res = "1280x720"
+elif res == "1080p":
+    res = "1920x1080"
+elif res == "360p":
+    res = "640x360"
+elif res == "480p":
+    res = "854x480"
+
+generate_json(res,int(fps),bitrate,30,0)
+os.system("python3 -m itu_p1203 output.json")
