@@ -72,7 +72,6 @@ def extract_features(pcap_file):
                 start_time = packet_time
             end_time = packet_time
         
-        
         if math.trunc(packet_time-start_time) == 30:
             break
         #print(packet.timestamp())

@@ -11,7 +11,7 @@ def delete_directories(directory):
     for item in os.listdir(directory):
         item_path = os.path.join(directory, item)
         # Check if the item is a directory and ends with "30" or "p"
-        if os.path.isdir(item_path) and (item.endswith("30") or item.endswith("p")):
+        if os.path.isdir(item_path) and ( not item.endswith("git") ):
             try:
                 # Delete the directory and all its contents
                 shutil.rmtree(item_path)
