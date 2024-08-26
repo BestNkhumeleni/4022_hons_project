@@ -75,6 +75,11 @@ def setup_mininet_and_transmit(video_file):
     info(f"*** Capturing packets on link1 (h1 <-> s1) to {capture_file} ***\n")
     h1.cmd(f'tcpdump -i {link1.intf1} -w {capture_file} &')
     
+    # Investigate if the protocol have an impact on the qoe
+    # Add encryption/ if neccesary
+    # Designing a questionaire
+    # 
+    
     # Start a simple video transmission using netcat
     info("*** Starting video transmission from h1 to h2 ***\n")
     

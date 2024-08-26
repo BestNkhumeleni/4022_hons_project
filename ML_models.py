@@ -256,7 +256,7 @@ def random_forest_model_fps(folder_path, testing_data):
     return predicted_frame_rate[0]
 
 training_data = "/home/best/Desktop/EEE4022S/Data/training_data/"
-testing_data = "/home/best/Desktop/EEE4022S/Data/testing_data/testdata_4.csv"
+testing_data = "/home/best/Desktop/EEE4022S/Data/testing_data/testdata_1.csv"
 
 
 x,y = extract_features_resolution(training_data)
