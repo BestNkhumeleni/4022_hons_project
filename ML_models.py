@@ -11,9 +11,11 @@ import cv2
 import subprocess
 import json
 import csv
+from imblearn.over_sampling import SMOTE
 
 
 video_path = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/"
+smote = SMOTE()
 
 def read_bitrate_from_csv(csv_file_path):
     """Read the bitrate from the CSV file."""
@@ -97,43 +99,7 @@ def get_ffprobe_metadata(video_path):
 
 
 
-def random_forest_model_resolution(X,y, testing_data):
-    # Encode the resolution labels (360p, 480p, 720p, 1080p)
-    label_encoder = LabelEncoder()
-    y_encoded = label_encoder.fit_transform(y)
 
-    # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
-
-    # Feature scaling
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    # Train a Random Forest Classifier
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
-    model.fit(X_train_scaled, y_train)
-
-    # Predict on the test set
-    y_pred = model.predict(X_test_scaled)
-
-    # Evaluate the model
-    print("Resolution accuracy:", accuracy_score(y_test, y_pred)*100 ,end = "% \n")
-    print("Classification Report:")
-    print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
-   
-    
-    unseen_df = pd.read_csv(testing_data)
-    unseen_features = unseen_df[['bitrate', 'num_bytes', 'num_packets', 'interval', 'packet_size']].mean(axis=0)
-    unseen_features_scaled = scaler.transform([unseen_features])
-
-    # Predict the resolution
-    predicted_resolution = model.predict(unseen_features_scaled)
-    predicted_label = label_encoder.inverse_transform(predicted_resolution)
-
-    print("Predicted Resolution:", predicted_label[0])
-    print()
-    
-    return predicted_label[0]
 
 def extract_features_resolution(folder_path):
     # Initialize lists to hold the features and labels
@@ -169,8 +135,47 @@ def extract_features_resolution(folder_path):
     # Convert lists to DataFrame and Series
     x = pd.DataFrame(features)
     y = pd.Series(labels)
-    return x, y
+    X_resampled, y_resampled = smote.fit_resample(x, y) #generates synthetic data using smote.
+    return X_resampled, y_resampled
 
+
+def random_forest_model_resolution(X,y, testing_data):
+    # Encode the resolution labels (360p, 480p, 720p, 1080p)
+    label_encoder = LabelEncoder()
+    y_encoded = label_encoder.fit_transform(y)
+
+    # Split the data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
+
+    # Feature scaling
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    # Train a Random Forest Classifier
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_train_scaled, y_train)
+
+    # Predict on the test set
+    y_pred = model.predict(X_test_scaled)
+
+    # Evaluate the model
+    print("Resolution accuracy:", accuracy_score(y_test, y_pred)*100 ,end = "% \n")
+    # print("Classification Report:")
+    # print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
+   
+    
+    unseen_df = pd.read_csv(testing_data)
+    unseen_features = unseen_df[['bitrate', 'num_bytes', 'num_packets', 'interval', 'packet_size']].mean(axis=0)
+    unseen_features_scaled = scaler.transform([unseen_features])
+
+    # Predict the resolution
+    predicted_resolution = model.predict(unseen_features_scaled)
+    predicted_label = label_encoder.inverse_transform(predicted_resolution)
+
+    print("Predicted Resolution:", predicted_label[0])
+    print()
+    
+    return predicted_label[0]
 
 def random_forest_model_fps(folder_path, testing_data):
     # Folder containing the CSV files
@@ -204,11 +209,8 @@ def random_forest_model_fps(folder_path, testing_data):
                     frame_rate = 60
             else:
                 frame_rate = 60 if frame_rate_60_pattern.search(filename) else 30
-                
-            
             
             frame_rate = round(frame_rate)
-
             # Read the CSV file
             file_path = os.path.join(folder_path, filename)
             df = pd.read_csv(file_path)
@@ -221,9 +223,9 @@ def random_forest_model_fps(folder_path, testing_data):
             labels.append(frame_rate)
 
     # Convert lists to DataFrame and Series
-    X = pd.DataFrame(features)
-    y = pd.Series(labels)
-
+    X_resampled = pd.DataFrame(features)
+    y_resampled = pd.Series(labels)
+    X, y = smote.fit_resample(X_resampled, y_resampled) #generates synthetic data using smote
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -241,8 +243,8 @@ def random_forest_model_fps(folder_path, testing_data):
 
     # Evaluate the model
     print("Accuracy:", accuracy_score(y_test, y_pred)*100 ,end = "% \n")
-    print("Classification Report:")
-    print(classification_report(y_test, y_pred))
+    # print("Classification Report:")
+    # print(classification_report(y_test, y_pred))
     
 
     # Predict on a new CSV file
@@ -256,7 +258,7 @@ def random_forest_model_fps(folder_path, testing_data):
     return predicted_frame_rate[0]
 
 training_data = "/home/best/Desktop/EEE4022S/Data/training_data/"
-testing_data = "/home/best/Desktop/EEE4022S/Data/testing_data/testdata_1.csv"
+testing_data = "/home/best/Desktop/EEE4022S/Data/testing_data/testdata_4.csv"
 
 
 x,y = extract_features_resolution(training_data)
@@ -275,4 +277,4 @@ elif res == "480p":
     res = "854x480"
 
 generate_json(res,int(fps),bitrate,30,0)
-os.system("python3 -m itu_p1203 output.json")
+#os.system("python3 -m itu_p1203 output.json")
