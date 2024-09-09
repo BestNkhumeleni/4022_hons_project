@@ -177,7 +177,7 @@ if __name__ == '__main__':
 
 delete_directories("/home/best/Desktop/EEE4022S/scripts")
                 
-#os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/Feature_extractor.py")
+os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/Feature_extractor.py")
 
     
     

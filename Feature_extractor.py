@@ -62,6 +62,7 @@ def extract_features(pcap_file):
     for packet in capture:
         total_packets+=1
         packet_time = float(packet.sniff_timestamp)
+        
         if hasattr(packet, 'frame_info'):
             total_bytes += int(packet.length)
             
@@ -71,7 +72,9 @@ def extract_features(pcap_file):
             if start_time is None:
                 start_time = packet_time
             end_time = packet_time
-        
+        tim = packet_time-start_time
+        print(f"{video_name} : {tim}")
+        print()
         if math.trunc(packet_time-start_time) == 30:
             break
         #print(packet.timestamp())
