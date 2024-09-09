@@ -139,10 +139,6 @@ def extract_features_resolution(folder_path):
     y = pd.Series(labels)
     # print(x,y)
     X_resampled, y_resampled = smote.fit_resample(x, y) #generates synthetic data using smote.
-    print("resolution input features:")
-    print(X_resampled)
-    print("labels input features:")
-    print(y_resampled)
     return X_resampled, y_resampled
 
 
@@ -235,10 +231,7 @@ def random_forest_model_fps(folder_path, testing_data):
     X, y = smote.fit_resample(X_resampled, y_resampled) #generates synthetic data using smote
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    print("FPS input features:")
-    print(X)
-    print("FPS labels:")
-    print(y)
+
     # Feature scaling
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)

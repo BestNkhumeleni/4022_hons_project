@@ -103,11 +103,11 @@ def extract_features(pcap_file):
         bitrate = (total_bytes * 8) / duration  # bits per second
         csvstor = {
         'name': filename,
+        'bitrate': bitrate,
         'num_bytes': total_bytes,
         'num_packets': total_packets,
         'interval': mean_interval,
         'packet_size': mean_packet_size,
-        'bitrate': bitrate
         }
         
         print(f"Analysis complete, feature extracted for {filename} are:")
