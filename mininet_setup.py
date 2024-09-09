@@ -91,7 +91,7 @@ def setup_mininet_and_transmit(video_file):
     h1.cmd(f'cat {video_file} | nc 10.0.0.2 12345 &')
     
     # Wait for 30 seconds
-    time.sleep(10)
+    time.sleep(5)
     
     # Stop the tcpdump capture and video transmission
     info("*** Stopping video transmission and capture after 30 seconds ***\n")

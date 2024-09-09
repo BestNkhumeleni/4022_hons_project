@@ -155,7 +155,7 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
 print()
 print("All files feature extraction complete")
 print()
-os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/ML_models.py")
+#os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/ML_models.py")
 
 
 
