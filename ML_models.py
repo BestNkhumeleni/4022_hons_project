@@ -81,7 +81,9 @@ def get_video_info(video_path):
     fps = video.get(cv2.CAP_PROP_FPS)
     
     video.release()
-    
+    #
+    height = str(height) + "p"
+    #print(height)
     return width, height, fps
 
 def get_ffprobe_metadata(video_path):
@@ -135,7 +137,12 @@ def extract_features_resolution(folder_path):
     # Convert lists to DataFrame and Series
     x = pd.DataFrame(features)
     y = pd.Series(labels)
+    # print(x,y)
     X_resampled, y_resampled = smote.fit_resample(x, y) #generates synthetic data using smote.
+    print("resolution input features:")
+    print(X_resampled)
+    print("labels input features:")
+    print(y_resampled)
     return X_resampled, y_resampled
 
 
@@ -228,7 +235,10 @@ def random_forest_model_fps(folder_path, testing_data):
     X, y = smote.fit_resample(X_resampled, y_resampled) #generates synthetic data using smote
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
+    print("FPS input features:")
+    print(X)
+    print("FPS labels:")
+    print(y)
     # Feature scaling
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
@@ -242,7 +252,7 @@ def random_forest_model_fps(folder_path, testing_data):
     y_pred = model.predict(X_test_scaled)
 
     # Evaluate the model
-    print("Accuracy:", accuracy_score(y_test, y_pred)*100 ,end = "% \n")
+    print("FPS accuracy:", accuracy_score(y_test, y_pred)*100 ,end = "% \n")
     # print("Classification Report:")
     # print(classification_report(y_test, y_pred))
     
@@ -259,7 +269,10 @@ def random_forest_model_fps(folder_path, testing_data):
 
 training_data = "/home/best/Desktop/EEE4022S/Data/training_data/"
 testing_data = "/home/best/Desktop/EEE4022S/Data/testing_data/testdata_4.csv"
-
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_colwidth', None)
+pd.set_option('display.width', None)
 
 x,y = extract_features_resolution(training_data)
 res = random_forest_model_resolution(x,y,testing_data)

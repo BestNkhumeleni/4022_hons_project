@@ -79,7 +79,7 @@ def setup_mininet_and_transmit(video_file):
     # Investigate if the protocol have an impact on the qoe
     # Add encryption/ if neccesary
     # Designing a questionaire
-    # 
+    # UDP, stp
     
     # Start a simple video transmission using netcat
     info("*** Starting video transmission from h1 to h2 ***\n")

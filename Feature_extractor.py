@@ -1,15 +1,9 @@
 import pyshark
 import math
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.preprocessing import StandardScaler
 import os
 import csv
 import shutil
 import concurrent.futures
-from multiprocessing import Pool
 
 #get_fps(pcap_file) #if you know
 
@@ -42,16 +36,13 @@ def append_to_csv(file_name, data):
         writer.writerow(data)
 
 
-
-
 def extract_features(pcap_file):
-    capture = pyshark.FileCapture(pcap_file)
-    
+    capture = pyshark.FileCapture(pcap_file, use_json=True, include_raw=False)
     video_name = os.path.basename(pcap_file)
     filename = video_name[:-5]
-    print()
-    print("Analysing "+filename)
-    print()
+    
+    print(f"\nAnalyzing {filename}\n")
+
     total_bytes = 0
     start_time = None
     end_time = None
@@ -59,29 +50,34 @@ def extract_features(pcap_file):
     packet_sizes = []
     packet_times = []
     
+    # Only loop until necessary (30 seconds worth of packets)
     for packet in capture:
-        total_packets+=1
-        packet_time = float(packet.sniff_timestamp)
+        try:
+            total_packets += 1
+            packet_time = float(packet.sniff_timestamp)
+            
+            # Only print essential information if needed
+            # print(packet)
+            
+            # Only parse frame length and timestamp if available
+            if hasattr(packet, 'frame_info'):
+                packet_len = int(packet.length)
+                total_bytes += packet_len
+                packet_sizes.append(packet_len)
+                packet_times.append(packet_time)
+                
+                if start_time is None:
+                    start_time = packet_time
+                
+                end_time = packet_time
+
+            # Exit early after 30 seconds
+            if math.trunc(packet_time - start_time) == 30:
+                break
         
-        if hasattr(packet, 'frame_info'):
-            total_bytes += int(packet.length)
-            
-            packet_sizes.append(int(packet.length))
-            packet_times.append(float(packet.sniff_timestamp))
-            
-            if start_time is None:
-                start_time = packet_time
-            end_time = packet_time
-        tim = packet_time-start_time
-        print(f"{video_name} : {tim}")
-        print()
-        if math.trunc(packet_time-start_time) == 30:
-            break
-        #print(packet.timestamp())
-    # print(f"the total number of bytes is: {total_bytes}")
-    # print(f"the total number of packets is: {total_packets}")
-    
-    
+        except AttributeError:
+            continue  # Skip packets that don't have the required fields
+
     capture.close()
     
     time_intervals = [t2 - t1 for t1, t2 in zip(packet_times[:-1], packet_times[1:])]

@@ -16,7 +16,7 @@
                 "bitrate": 18478.79313324669,
                 "codec": "h264",
                 "duration": 30,
-                "fps": 30,
+                "fps": 60,
                 "resolution": "1280x720",
                 "start": 0
             }

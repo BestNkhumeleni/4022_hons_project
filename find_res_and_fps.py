@@ -1,67 +1,53 @@
-import cv2
 import subprocess
-import json
+import re
+import pandas as pd
 import os
 
-def get_video_info(video_path):
-    # Get video resolution and framerate using OpenCV
-    video = cv2.VideoCapture(video_path)
-    
-    if not video.isOpened():
-        raise ValueError(f"Error opening video file {video_path}")
-    
-    # Resolution
-    width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    
-    # Frame rate
-    fps = video.get(cv2.CAP_PROP_FPS)
-    
-    video.release()
-    
-    return width, height, fps
+def run_ml_model():
+    # Run the ML_models.py file and capture the output
+    result = subprocess.run(['python', 'ML_models.py'], capture_output=True, text=True)
+    output = result.stdout
 
-def get_ffprobe_metadata(video_path):
-    # Use ffprobe to get more detailed metadata, suppressing errors
-    command = [
-        'ffprobe',
-        '-v', 'error', # Suppresses all errors
-        '-show_entries', 'stream=width,height,r_frame_rate',
-        '-of', 'json',
-        video_path
-    ]
-    
-    # Redirect stderr to /dev/null to suppress any error output
-    with open(os.devnull, 'w') as devnull:
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=devnull)
-    
-    return json.loads(result.stdout)
+    # Extract accuracy values using regular expressions
+    resolution_acc_match = re.search(r'Resolution accuracy: (\d+\.?\d*)%', output)
+    fps_acc_match = re.search(r'FPS accuracy: (\d+\.?\d*)%', output)
 
-if __name__ == "__main__":
-    #video_path = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/bold_colours_360p.mp4"
-    
-    # Get video info using OpenCV
-    # width, height, fps = get_video_info(video_path)
-    
-    # print(f"Resolution: {width}x{height}")
-    # print(f"Frame rate: {fps} fps")
-    
-    # # Optionally get detailed metadata using ffprobe
-    # metadata = get_ffprobe_metadata(video_path)
-    # print("FFprobe Metadata:", json.dumps(metadata, indent=2))
+    # Extract the tables (labels and features) from the output
+    # Assuming the tables are in a format that can be parsed from the output, you may need to adjust this part
+    resolution_labels_table = re.findall(r'Resolution labels table:\n(.+?)\n\n', output, re.DOTALL)
+    resolution_features_table = re.findall(r'Resolution features table:\n(.+?)\n\n', output, re.DOTALL)
+    fps_labels_table = re.findall(r'FPS labels table:\n(.+?)\n\n', output, re.DOTALL)
+    fps_features_table = re.findall(r'FPS features table:\n(.+?)\n\n', output, re.DOTALL)
 
+    resolution_acc = float(resolution_acc_match.group(1)) if resolution_acc_match else None
+    fps_acc = float(fps_acc_match.group(1)) if fps_acc_match else None
 
-    video_path = "/home/best/Desktop/EEE4022S/Data/Raw_Videos"
-    for filename in os.listdir(video_path):
-    # Get video info using OpenCV
-        video = video_path + "/" + filename
-        width, height, fps = get_video_info(video)
-        print(video)
-        print(f"Resolution: {height}p")
-        print(f"Frame rate: {fps} fps")
+    return resolution_acc, fps_acc, resolution_labels_table, resolution_features_table, fps_labels_table, fps_features_table
 
+def save_to_csv(table_data, filename):
+    # Assuming the tables are extracted as lists of lists (rows and columns), you can convert them to a DataFrame
+    df = pd.DataFrame([row.split() for row in table_data.split('\n')])
+    df.to_csv(filename, index=False)
 
+def main():
+    while True:
+        resolution_acc, fps_acc, res_labels, res_features, fps_labels, fps_features = run_ml_model()
 
-    # # Optionally get detailed metadata using ffprobe
-    # metadata = get_ffprobe_metadata(video_path)
-    # print("FFprobe Metadata:", json.dumps(metadata, indent=2))
+        # Check if resolution accuracy exceeds 90%
+        if resolution_acc > 90:
+            if res_labels and res_features:
+                save_to_csv(res_labels[0], 'resolution_labels.csv')
+                save_to_csv(res_features[0], 'resolution_features.csv')
+            print(f"Resolution accuracy {resolution_acc}%: Data saved.")
+            break
+
+        # Check if FPS accuracy exceeds 90%
+        if fps_acc > 90:
+            if fps_labels and fps_features:
+                save_to_csv(fps_labels[0], 'fps_labels.csv')
+                save_to_csv(fps_features[0], 'fps_features.csv')
+            print(f"FPS accuracy {fps_acc}%: Data saved.")
+            break
+
+if __name__ == '__main__':
+    main()
