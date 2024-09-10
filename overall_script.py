@@ -1,0 +1,168 @@
+from mininet.net import Mininet
+from mininet.node import OVSController
+from mininet.log import setLogLevel, info
+from mininet.util import dumpNodeConnections
+import os
+import time
+import shutil
+import re
+import cv2
+
+def play_video(video_path):
+    # Open the video file
+    cap = cv2.VideoCapture(video_path)
+
+    if not cap.isOpened():
+        print("Error: Could not open video.")
+        return
+
+    # Get the frames per second (fps) of the video
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    delay = int(1000 / fps)
+
+    while cap.isOpened():
+        # Read each frame from the video
+        ret, frame = cap.read()
+
+        if not ret:
+            print("End of video.")
+            break
+
+        # Display the frame
+        cv2.imshow('Video', frame)
+
+        # Exit when 'q' key is pressed
+        if cv2.waitKey(delay) & 0xFF == ord('q'):
+            break
+
+    # Release the video capture object and close display windows
+    cap.release()
+    cv2.destroyAllWindows()
+
+def delete_directories(directory):
+    # Loop through all items in the specified directory
+    for item in os.listdir(directory):
+        item_path = os.path.join(directory, item)
+        # Check if the item is a directory and ends with "30" or "p"
+        if os.path.isdir(item_path) and ( not item.endswith("git") ):
+            try:
+                # Delete the directory and all its contents
+                shutil.rmtree(item_path)
+                print(f"Deleted directory: {item_path}")
+            except Exception as e:
+                print(f"Error deleting {item_path}: {e}")
+
+def check_file_size(file_path):
+    # Get the size of the file in bytes
+    file_size = os.path.getsize(file_path)
+    
+    # Convert size to megabytes (1 MB = 1024 * 1024 bytes)
+    size_in_mb = file_size / (1024 * 1024)
+    
+    # Check if the file size is less than 1 MB
+    return size_in_mb
+        
+def setup_mininet_and_transmit(video_file):
+    # Create a network
+    net = Mininet(controller=OVSController)
+    
+    # Add a controller
+    net.addController('c0')
+    
+    # Add hosts
+    h1 = net.addHost('h1', ip='10.0.0.1')
+    h2 = net.addHost('h2', ip='10.0.0.2')
+    
+    # Add a switch
+    s1 = net.addSwitch('s1')
+    
+    # Create links between hosts and switch
+    link1 = net.addLink(h1, s1)
+    link2 = net.addLink(h2, s1)
+    
+    # Start the network
+    net.start()
+    
+    # Dump host connections
+    dumpNodeConnections(net.hosts)
+    
+    # Path to video file on h1 (update this path as necessary)
+    
+    
+    # Ensure the video file exists
+    if not os.path.isfile(video_file):
+        info("Video file not found!\n")
+        net.stop()
+        return
+    
+    # Extract the last five characters of the video file name (excluding the extension)
+    video_name = os.path.basename(video_file)
+    folder_name = video_name[:-4]  # This will extract the last five characters excluding the extension
+    
+    # Create the folder if it doesn't exist
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+    
+    # Start capturing packets on the link between h1 and s1
+    capture_file = folder_name+'.pcap'
+    info(f"*** Capturing packets on link1 (h1 <-> s1) to {capture_file} ***\n")
+    h1.cmd(f'tcpdump -i {link1.intf1} -w {capture_file} &')
+    
+    # Investigate if the protocol have an impact on the qoe
+    # Add encryption/ if neccesary
+    # Designing a questionaire
+    # UDP, stp
+    
+    # Start a simple video transmission using netcat
+    info("*** Starting video transmission from h1 to h2 ***\n")
+    
+    # Start a server on h2 to receive the video
+    h2.cmd('nc -l -p 12345 > received_video.mp4 &')
+    
+    # Send the video from h1 to h2
+    h1.cmd(f'cat {video_file} | nc 10.0.0.2 12345 &')
+    
+    # Wait for 30 seconds
+    time.sleep(5)
+    
+    # Stop the tcpdump capture and video transmission
+    info("*** Stopping video transmission and capture after 30 seconds ***\n")
+    h1.cmd('pkill -f tcpdump')
+    #h1.cmd('pkill -f nc')
+    #h2.cmd('pkill -f nc')
+    
+    
+    
+    
+    # Stop the network
+    net.stop()
+    info("*** Mininet stopped ***\n")
+    
+    while check_file_size(capture_file)<1: #if it failed, keep trying until it doesnt
+        print()
+        print("There was a problem during capture for "+capture_file)
+        # video_name = filename[:-5]
+        # video_file = directory +"/" + video_name + ".mp4"
+        print("Recapturing")
+        os.system(f"rm {capture_file}")
+        setup_mininet_and_transmit(video_file)
+        print()
+    return capture_file
+    
+if __name__ == '__main__':
+    setLogLevel('info')
+    video_file = '/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4'
+    pcap_file = setup_mininet_and_transmit(video_file)
+    delete_directories("/home/best/Desktop/EEE4022S/scripts")
+    
+    #play_video('received_video.mp4')
+           
+   
+    
+
+delete_directories("/home/best/Desktop/EEE4022S/scripts")
+                
+#os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/Feature_extractor.py")
+
+    
+    
