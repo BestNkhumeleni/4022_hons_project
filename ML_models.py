@@ -261,7 +261,7 @@ def random_forest_model_fps(folder_path, testing_data):
     return predicted_frame_rate[0]
 
 training_data = "/home/best/Desktop/EEE4022S/Data/training_data/"
-testing_data = "/home/best/Desktop/EEE4022S/Data/testing_data/testdata_4.csv"
+testing_data = "test_480p.csv"
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_colwidth', None)
@@ -283,4 +283,4 @@ elif res == "480p":
     res = "854x480"
 
 generate_json(res,int(fps),bitrate,30,0)
-#os.system("python3 -m itu_p1203 output.json")
+os.system("python3 -m itu_p1203 output.json")

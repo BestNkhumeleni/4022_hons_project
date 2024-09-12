@@ -1,8 +1,14 @@
+
 from mininet.net import Mininet
 from mininet.node import OVSController
 from mininet.log import setLogLevel, info
 from mininet.util import dumpNodeConnections
 
+import threading
+import time
+import cv2
+import pyshark
+from concurrent.futures import ThreadPoolExecutor
 import time
 import shutil
 import cv2
@@ -37,60 +43,6 @@ import json
 import csv
 from imblearn.over_sampling import SMOTE
 
-t = TicToc()
-
-def get_video_duration_opencv(video_path):
-    # Open the video file
-    video = cv2.VideoCapture(video_path)
-
-    # Get the frames per second (fps)
-    fps = video.get(cv2.CAP_PROP_FPS)
-
-    # Get the total number of frames
-    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-
-    # Calculate the duration in seconds
-    duration = frame_count / fps
-
-    # Release the video file
-    video.release()
-
-    return duration
-
-def append_to_csv(file_name, data):
-    """
-    Appends the provided data to a CSV file.
-    
-    :param file_name: str, the name of the CSV file.
-    :param data: dict, dictionary where keys are the column names and values are the data to append.
-    """
-    # Check if the file already exists
-    file_exists = False
-    try:
-        with open(file_name, 'r', newline='') as file:
-            file_exists = True
-    except FileNotFoundError:
-        pass
-    
-    # Open the file in append mode
-    with open(file_name, 'a', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=data.keys())
-        
-        # Write the header only if the file does not exist
-        if not file_exists:
-            writer.writeheader()
-        
-        # Write the data to the file
-        writer.writerow(data)
-
-def get_packet_count_pcapng(capture_file):
-    cap = pyshark.FileCapture(capture_file, use_json=True, include_raw=False)
-    #capture = pyshark.FileCapture(pcap_file, use_json=True, include_raw=False)
-    count = 0
-    for _ in cap:
-        count += 1
-        #print(count)
-    return count
 
 def play_video():
     video_path = "received_video.mp4"
@@ -123,6 +75,37 @@ def play_video():
     cap.release()
     cv2.destroyAllWindows()
 
+
+def read_packet_count_from_file(output_txt_file):
+    # Read the packet count from the text file as an integer
+    with open(output_txt_file, 'r') as f:
+        packet_count = int(f.read().strip())
+    
+    return packet_count
+
+
+def get_packet_count_pcapng(capture_file):
+    cap = pyshark.FileCapture(capture_file, use_json=True, include_raw=False)
+    #capture = pyshark.FileCapture(pcap_file, use_json=True, include_raw=False)
+    count = 0
+    for _ in cap:
+        count += 1
+        #print(count)
+    cap.close()
+    return count
+
+
+def check_file_size(file_path):
+    # Get the size of the file in bytes
+    file_size = os.path.getsize(file_path)
+    
+    # Convert size to megabytes (1 MB = 1024 * 1024 bytes)
+    size_in_mb = file_size / (1024 * 1024)
+    
+    # Check if the file size is less than 1 MB
+    return size_in_mb
+
+
 def delete_directories(directory):
     # Loop through all items in the specified directory
     for item in os.listdir(directory):
@@ -136,16 +119,53 @@ def delete_directories(directory):
             except Exception as e:
                 print(f"Error deleting {item_path}: {e}")
 
-def check_file_size(file_path):
-    # Get the size of the file in bytes
-    file_size = os.path.getsize(file_path)
+
+def get_video_duration_opencv(video_path):
+    # Open the video file
+    video = cv2.VideoCapture(video_path)
+
+    # Get the frames per second (fps)
+    fps = video.get(cv2.CAP_PROP_FPS)
+
+    # Get the total number of frames
+    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    # Calculate the duration in seconds
+    duration = frame_count / fps
+
+    # Release the video file
+    video.release()
+
+    return duration
+
+
+def append_to_csv(file_name, data):
+    """
+    Appends the provided data to a CSV file.
     
-    # Convert size to megabytes (1 MB = 1024 * 1024 bytes)
-    size_in_mb = file_size / (1024 * 1024)
+    :param file_name: str, the name of the CSV file.
+    :param data: dict, dictionary where keys are the column names and values are the data to append.
+    """
+    # Check if the file already exists
+    file_exists = False
+    try:
+        with open(file_name, 'r', newline='') as file:
+            file_exists = True
+    except FileNotFoundError:
+        pass
     
-    # Check if the file size is less than 1 MB
-    return size_in_mb
+    # Open the file in append mode
+    with open(file_name, 'a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=data.keys())
         
+        # Write the header only if the file does not exist
+        if not file_exists:
+            writer.writeheader()
+        
+        # Write the data to the file
+        writer.writerow(data)
+
+
 def generate_json(resolution, fps, bitrate, duration, start):
     data = {
         "I11": {
@@ -186,92 +206,6 @@ def generate_json(resolution, fps, bitrate, duration, start):
     with open('output.json', 'w') as json_file:
         json.dump(data, json_file, indent=4)
 
-def setup_mininet_and_transmit(video_file):
-    # Create a network
-    net = Mininet(controller=OVSController)
-    
-    # Add a controller
-    net.addController('c0')
-    
-    # Add hosts
-    h1 = net.addHost('h1', ip='10.0.0.1')
-    h2 = net.addHost('h2', ip='10.0.0.2')
-    
-    # Add a switch
-    s1 = net.addSwitch('s1')
-    
-    # Create links between hosts and switch
-    link1 = net.addLink(h1, s1)
-    link2 = net.addLink(h2, s1)
-    
-    # Start the network
-    net.start()
-    
-    # Dump host connections
-    dumpNodeConnections(net.hosts)
-    
-    # Path to video file on h1 (update this path as necessary)
-    
-    
-    # Ensure the video file exists
-    if not os.path.isfile(video_file):
-        info("Video file not found!\n")
-        net.stop()
-        return
-    
-    # Extract the last five characters of the video file name (excluding the extension)
-    video_name = os.path.basename(video_file)
-    folder_name = video_name[:-4]  # This will extract the last five characters excluding the extension
-    
-    # Create the folder if it doesn't exist
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
-    
-    # Start capturing packets on the link between h1 and s1
-    capture_file = folder_name+'.pcap'
-    info(f"*** Capturing packets on link1 (h1 <-> s1) to {capture_file} ***\n")
-    h1.cmd(f'tcpdump -i {link1.intf1} -w {capture_file} &')
-    
-    # Investigate if the protocol have an impact on the qoe
-    # Add encryption/ if neccesary
-    # Designing a questionaire
-    # UDP, stp
-    
-    # Start a simple video transmission using netcat
-    info("*** Starting video transmission from h1 to h2 ***\n")
-    
-    # Start a server on h2 to receive the video
-    h2.cmd('nc -l -p 12345 > received_video.mp4 &')
-    
-    # Send the video from h1 to h2
-    h1.cmd(f'cat {video_file} | nc 10.0.0.2 12345 &')
-    
-    # Wait for 30 seconds
-    time.sleep(5)
-    
-    # Stop the tcpdump capture and video transmission
-    info("*** Stopping video transmission and capture after 30 seconds ***\n")
-    h1.cmd('pkill -f tcpdump')
-    #h1.cmd('pkill -f nc')
-    #h2.cmd('pkill -f nc')
-    
-    
-    
-    
-    # Stop the network
-    net.stop()
-    info("*** Mininet stopped ***\n")
-    
-    while check_file_size(capture_file)<1: #if it failed, keep trying until it doesnt
-        print()
-        print("There was a problem during capture for "+capture_file)
-        # video_name = filename[:-5]
-        # video_file = directory +"/" + video_name + ".mp4"
-        print("Recapturing")
-        os.system(f"rm {capture_file}")
-        setup_mininet_and_transmit(video_file)
-        print()
-    return capture_file
 
 def predict_from_csv(input_csv):
     # Initialize SMOTE
@@ -359,6 +293,7 @@ def predict_from_csv(input_csv):
     # Return the best predictions
     return resolution_prediction, fps_prediction
 
+# Function with a while loop
 def extract_features(pcap_file, video_path, interval, num_packets):
     capture = pyshark.FileCapture(pcap_file, use_json=True, include_raw=False)
     video_name = os.path.basename(pcap_file)
@@ -377,16 +312,18 @@ def extract_features(pcap_file, video_path, interval, num_packets):
     #idea use the proportion of the capture to that of the video
     
     # t.tic()
-    video_length = get_video_duration_opencv(video_path)
+    video_length = 605
     
    
     # t.toc()
     print("starting:")
     while(current_time<=video_length):
-        print("yes the features are being")
+        #print("here?")
         stop_packets = round(num_packets*(current_time/video_length))
-        t.tic()
+        # t.tic()
+        #print(current_time)
         for packet in capture:
+            #print("yes")
             try:
                 start_time = time.time()
                 total_packets += 1
@@ -416,7 +353,7 @@ def extract_features(pcap_file, video_path, interval, num_packets):
             except AttributeError:
                 continue  # Skip packets that don't have the required fields
         capture.close()
-        t.toc()
+        # t.toc()
         time_intervals = [t2 - t1 for t1, t2 in zip(packet_times[:-1], packet_times[1:])]
         mean_interval = sum(time_intervals) / len(time_intervals)
         mean_packet_size = sum(packet_sizes) / len(packet_sizes)
@@ -446,41 +383,128 @@ def extract_features(pcap_file, video_path, interval, num_packets):
             resolution,fps = predict_from_csv(out_csv)
             duration = get_video_duration_opencv(video_path)
             bitrate = (total_bytes * 8) / duration
-            generate_json(resolution,fps,bitrate,current_time,0)
-            os.system("python3 -m itu_p1203 output.json")
-            #create json file
-            #predict qoe
-            
+            fps = int(fps)
+            res = resolution
+            if res == "720p":
+                res = "1280x720"
+            elif res == "1080p":
+                res = "1920x1080"
+            elif res == "360p":
+                res = "640x360"
+            elif res == "480p":
+                res = "854x480"
+            generate_json(res,fps,bitrate,current_time,0)
+            print()
+            os.system("/home/best/miniconda3/bin/python -m itu_p1203 output.json")
+            #subprocess.run(["python3 -m", "itu_p1203", "output.json"])
+         
             
         current_time+=interval
         
-    duration = get_video_duration_opencv(video_path)
-    bitrate = (total_bytes * 8) / duration
+    # duration = get_video_duration_opencv(video_path)
+    # bitrate = (total_bytes * 8) / duration
     
-
-if __name__ == '__main__':
-    setLogLevel('info')
-    video_file = '/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4'
-    pcap_file = setup_mininet_and_transmit(video_file)
-    delete_directories("/home/best/Desktop/EEE4022S/scripts")
-    video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4"
-    interval = 5
-    numberofpackets = get_packet_count_pcapng(pcap_file)
-    thread1 = threading.Thread(target=extract_features, args=(pcap_file,video,interval, numberofpackets))
-    thread2 = threading.Thread(target=play_video)
-    # Start threads
-    thread1.start()
-    thread2.start()
-
-    # Wait for both threads to finish
-    thread1.join()
-    thread2.join()
+def setup_mininet_and_transmit(video_file):
+    # Create a network
+    net = Mininet(controller=OVSController)
     
-           
-
-delete_directories("/home/best/Desktop/EEE4022S/scripts")
-                
-#os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/Feature_extractor.py")
-
+    # Add a controller
+    net.addController('c0')
+    
+    # Add hosts
+    h1 = net.addHost('h1', ip='10.0.0.1')
+    h2 = net.addHost('h2', ip='10.0.0.2')
+    
+    # Add a switch
+    s1 = net.addSwitch('s1')
+    
+    # Create links between hosts and switch
+    link1 = net.addLink(h1, s1)
+    link2 = net.addLink(h2, s1)
+    
+    # Start the network
+    net.start()
+    
+    # Dump host connections
+    dumpNodeConnections(net.hosts)
+    
+    # Path to video file on h1 (update this path as necessary)
     
     
+    # Ensure the video file exists
+    if not os.path.isfile(video_file):
+        info("Video file not found!\n")
+        net.stop()
+        return
+    
+    # Extract the last five characters of the video file name (excluding the extension)
+    video_name = os.path.basename(video_file)
+    folder_name = video_name[:-4]  # This will extract the last five characters excluding the extension
+    
+    # Create the folder if it doesn't exist
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+    
+    # Start capturing packets on the link between h1 and s1
+    capture_file = folder_name+'.pcap'
+    info(f"*** Capturing packets on link1 (h1 <-> s1) to {capture_file} ***\n")
+    h1.cmd(f'tcpdump -i {link1.intf1} -w {capture_file} &')
+    
+    # Investigate if the protocol have an impact on the qoe
+    # Add encryption/ if neccesary
+    # Designing a questionaire
+    # UDP, stp
+    
+    # Start a simple video transmission using netcat
+    info("*** Starting video transmission from h1 to h2 ***\n")
+    
+    # Start a server on h2 to receive the video
+    h2.cmd('nc -l -p 12345 > received_video.mp4 &')
+    
+    # Send the video from h1 to h2
+    h1.cmd(f'cat {video_file} | nc 10.0.0.2 12345 &')
+    
+    # Wait for 30 seconds
+    time.sleep(5)
+    
+    # Stop the tcpdump capture and video transmission
+    info("*** Stopping video transmission and capture after 30 seconds ***\n")
+    h1.cmd('pkill -f tcpdump')
+    #h1.cmd('pkill -f nc')
+    #h2.cmd('pkill -f nc')
+    
+    # Stop the network
+    net.stop()
+    info("*** Mininet stopped ***\n")
+    
+    while check_file_size(capture_file)<1: #if it failed, keep trying until it doesnt
+        print()
+        print("There was a problem during capture for "+capture_file)
+        # video_name = filename[:-5]
+        # video_file = directory +"/" + video_name + ".mp4"
+        print("Recapturing")
+        os.system(f"rm {capture_file}")
+        setup_mininet_and_transmit(video_file)
+        print()
+    return capture_file
+
+
+
+video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4"
+interval = 5 # How often do you want to sample the stream in seconds
+pcap_file = setup_mininet_and_transmit(video)
+
+subprocess.run(["python3", "packet_counter.py", pcap_file])
+numberofpackets = read_packet_count_from_file('output_packet_count.txt')
+thread1 = threading.Thread(target=extract_features, args=(pcap_file,video,interval, numberofpackets))
+thread2 = threading.Thread(target=play_video)
+
+# Start threads
+thread1.start()
+thread2.start()
+
+# Wait for both threads to complete
+thread1.join()
+thread2.join()
+#os.system("python3 -m itu_p1203 output.json")
+
