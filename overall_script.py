@@ -2,14 +2,98 @@ from mininet.net import Mininet
 from mininet.node import OVSController
 from mininet.log import setLogLevel, info
 from mininet.util import dumpNodeConnections
-import os
+
 import time
 import shutil
+import cv2
+import csv
+import pyshark
+import threading
+import csv
+import shutil
+from pytictoc import TicToc
+import cv2
+import time
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import StandardScaler
+from imblearn.over_sampling import SMOTE
+import os
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import LabelEncoder
 import re
 import cv2
+import subprocess
+import json
+import csv
+from imblearn.over_sampling import SMOTE
 
-def play_video(video_path):
+t = TicToc()
+
+def get_video_duration_opencv(video_path):
     # Open the video file
+    video = cv2.VideoCapture(video_path)
+
+    # Get the frames per second (fps)
+    fps = video.get(cv2.CAP_PROP_FPS)
+
+    # Get the total number of frames
+    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    # Calculate the duration in seconds
+    duration = frame_count / fps
+
+    # Release the video file
+    video.release()
+
+    return duration
+
+def append_to_csv(file_name, data):
+    """
+    Appends the provided data to a CSV file.
+    
+    :param file_name: str, the name of the CSV file.
+    :param data: dict, dictionary where keys are the column names and values are the data to append.
+    """
+    # Check if the file already exists
+    file_exists = False
+    try:
+        with open(file_name, 'r', newline='') as file:
+            file_exists = True
+    except FileNotFoundError:
+        pass
+    
+    # Open the file in append mode
+    with open(file_name, 'a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=data.keys())
+        
+        # Write the header only if the file does not exist
+        if not file_exists:
+            writer.writeheader()
+        
+        # Write the data to the file
+        writer.writerow(data)
+
+def get_packet_count_pcapng(capture_file):
+    cap = pyshark.FileCapture(capture_file, use_json=True, include_raw=False)
+    #capture = pyshark.FileCapture(pcap_file, use_json=True, include_raw=False)
+    count = 0
+    for _ in cap:
+        count += 1
+        #print(count)
+    return count
+
+def play_video():
+    video_path = "received_video.mp4"
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():
@@ -62,6 +146,46 @@ def check_file_size(file_path):
     # Check if the file size is less than 1 MB
     return size_in_mb
         
+def generate_json(resolution, fps, bitrate, duration, start):
+    data = {
+        "I11": {
+            "segments": [
+                {
+                    "bitrate": 0,
+                    "codec": "aaclc",
+                    "duration": 0,
+                    "start": 0
+                }
+            ],
+            "streamId": 42
+        },
+        "I13": {
+            "segments": [
+                {
+                    "bitrate": bitrate,
+                    "codec": "h264",
+                    "duration": duration,
+                    "fps": fps,
+                    "resolution": resolution,
+                    "start": start
+                }
+            ],
+            "streamId": 42
+        },
+        "I23": {
+            "stalling": [],
+            "streamId": 42
+        },
+        "IGen": {
+            "device": "pc",
+            "displaySize": "1920x1080",
+            "viewingDistance": "150cm"
+        }
+    }
+    
+    with open('output.json', 'w') as json_file:
+        json.dump(data, json_file, indent=4)
+
 def setup_mininet_and_transmit(video_file):
     # Create a network
     net = Mininet(controller=OVSController)
@@ -148,17 +272,211 @@ def setup_mininet_and_transmit(video_file):
         setup_mininet_and_transmit(video_file)
         print()
     return capture_file
+
+def predict_from_csv(input_csv):
+    # Initialize SMOTE
+    smote = SMOTE()
+
+    # Load the training data for resolution and fps prediction
+    X_resolution = pd.read_csv('features_resolution.csv')  # Input features for resolution
+    y_resolution = pd.read_csv('labels_resolution.csv')    # Labels for resolution
+    X_fps = pd.read_csv('features_fps.csv')  # Input features for fps
+    y_fps = pd.read_csv('labels_fps.csv')    # Labels for fps
+
+    # Drop unnecessary columns from the datasets
+    y_fps = y_fps.drop(columns=['emp'])
+    X_resolution = X_resolution.drop(columns=['index'])
+    y_resolution = y_resolution.drop(columns=['index', 'emp'])
+    X_fps = X_fps.drop(columns=['index'])
+    y_fps = y_fps.drop(columns=['index'])
+
+    # Apply SMOTE for resolution data
+    X_resolution, y_resolution = smote.fit_resample(X_resolution, y_resolution)
+    # X_fps, y_fps = smote.fit_resample(X_fps, y_fps)  # Uncomment for fps if needed
+
+    # Apply StandardScaler for feature scaling
+    scaler = StandardScaler()
+    X_resolution_scaled = scaler.fit_transform(X_resolution)
+    X_fps_scaled = scaler.fit_transform(X_fps)
+
+    # Train-test split for both resolution and fps prediction
+    X_train_res, X_test_res, y_train_res, y_test_res = train_test_split(X_resolution_scaled, y_resolution, test_size=0.3, random_state=42)
+    X_train_fps, X_test_fps, y_train_fps, y_test_fps = train_test_split(X_fps_scaled, y_fps, test_size=0.3, random_state=42)
+
+    # Define models for both resolution and fps prediction
+    models_resolution = {
+        "Random Forest": RandomForestClassifier(),
+        "SVM": SVC(),
+        "Logistic Regression": LogisticRegression(max_iter=5000)
+    }
+    models_fps = {
+        "Random Forest": RandomForestClassifier(),
+        "SVM": SVC(),
+        "Logistic Regression": LogisticRegression(max_iter=5000)
+    }
+
+    # Train and evaluate models function
+    def train_and_evaluate(X_train, X_test, y_train, y_test, models):
+        trained_models = {}
+        model_accuracies = {}
+        for name, model in models.items():
+            model.fit(X_train, y_train.values.ravel())  # Flatten y for training
+            y_pred = model.predict(X_test)
+            accuracy = accuracy_score(y_test, y_pred)
+            trained_models[name] = model
+            model_accuracies[name] = accuracy
+            print(f"{name} Accuracy: {accuracy:.4f}")
+        # Find the model with the highest accuracy
+        best_model_name = max(model_accuracies, key=model_accuracies.get)
+        best_model = trained_models[best_model_name]
+        return best_model, trained_models
+
+    # Train models for resolution prediction and get the best one
+    print("Training Resolution Models:")
+    best_resolution_model, trained_resolution_models = train_and_evaluate(X_train_res, X_test_res, y_train_res, y_test_res, models_resolution)
+
+    # Train models for fps prediction and get the best one
+    print("\nTraining FPS Models:")
+    best_fps_model, trained_fps_models = train_and_evaluate(X_train_fps, X_test_fps, y_train_fps, y_test_fps, models_fps)
+
+    # Load the new input data for prediction
+    input_data = pd.read_csv(input_csv)
+
+    # Drop the video name (or any unnecessary) column for prediction
+    input_features = input_data.drop(columns=['name'])
+
+    # Scale the input data for prediction
+    input_features_scaled = scaler.transform(input_features)
+
+    # Predict resolution using the best model
+    resolution_prediction = best_resolution_model.predict(input_features_scaled)[0]
+    print(f"\nBest Model predicts Resolution: {resolution_prediction}")
+
+    # Predict fps using the best model
+    fps_prediction = best_fps_model.predict(input_features_scaled)[0]
+    print(f"Best Model predicts FPS: {fps_prediction}")
+
+    # Return the best predictions
+    return resolution_prediction, fps_prediction
+
+def extract_features(pcap_file, video_path, interval, num_packets):
+    capture = pyshark.FileCapture(pcap_file, use_json=True, include_raw=False)
+    video_name = os.path.basename(pcap_file)
+    filename = video_name[:-5]
     
+    print(f"\nAnalyzing {filename}\n")
+
+    total_bytes = 0
+    start_time = None
+    end_time = None
+    total_packets = 0
+    packet_sizes = []
+    packet_times = []
+    current_time = interval
+    
+    #idea use the proportion of the capture to that of the video
+    
+    # t.tic()
+    video_length = get_video_duration_opencv(video_path)
+    
+   
+    # t.toc()
+    print("starting:")
+    while(current_time<=video_length):
+        print("yes the features are being")
+        stop_packets = round(num_packets*(current_time/video_length))
+        t.tic()
+        for packet in capture:
+            try:
+                start_time = time.time()
+                total_packets += 1
+                packet_time = float(packet.sniff_timestamp)
+                if hasattr(packet, 'frame_info'):
+                    packet_len = int(packet.length)
+                    total_bytes += packet_len
+                    packet_sizes.append(packet_len)
+                    packet_times.append(packet_time)
+                    
+                    if start_time is None:
+                        start_time = packet_time
+                    end_time = packet_time
+                if total_packets >= stop_packets:
+                    end_time = time.time()
+                    # Calculate how long the iteration took
+                    elapsed_time = end_time - start_time
+                    # Calculate the remaining time to sleep if the iteration finished early
+                    time_to_sleep = interval - elapsed_time -0.2
+                    if time_to_sleep > 0:
+                        time.sleep(time_to_sleep)
+                    break
+
+                # Exit early after 30 seconds
+                #print(packet_time - start_time)
+            
+            except AttributeError:
+                continue  # Skip packets that don't have the required fields
+        capture.close()
+        t.toc()
+        time_intervals = [t2 - t1 for t1, t2 in zip(packet_times[:-1], packet_times[1:])]
+        mean_interval = sum(time_intervals) / len(time_intervals)
+        mean_packet_size = sum(packet_sizes) / len(packet_sizes)
+        
+        if mean_interval is not None:
+            mean_interval = mean_interval * 1000
+
+        if start_time and end_time:
+            duration = end_time - start_time
+            # print(duration)
+            bit = (total_bytes * 8) / duration  # bits per second
+            csvstor = {
+            'name': filename,
+            'bitrate': bit,
+            'num_bytes': total_bytes,
+            'num_packets': total_packets,
+            'interval': mean_interval,
+            'packet_size': mean_packet_size,
+            }
+            
+            print(f"Analysis complete, feature extracted for {filename} are:")
+            print(csvstor)
+            print()
+            out_csv = filename +".csv"
+            os.system(f"rm {out_csv}")
+            append_to_csv(out_csv, csvstor)
+            resolution,fps = predict_from_csv(out_csv)
+            duration = get_video_duration_opencv(video_path)
+            bitrate = (total_bytes * 8) / duration
+            generate_json(resolution,fps,bitrate,current_time,0)
+            os.system("python3 -m itu_p1203 output.json")
+            #create json file
+            #predict qoe
+            
+            
+        current_time+=interval
+        
+    duration = get_video_duration_opencv(video_path)
+    bitrate = (total_bytes * 8) / duration
+    
+
 if __name__ == '__main__':
     setLogLevel('info')
     video_file = '/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4'
     pcap_file = setup_mininet_and_transmit(video_file)
     delete_directories("/home/best/Desktop/EEE4022S/scripts")
+    video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4"
+    interval = 5
+    numberofpackets = get_packet_count_pcapng(pcap_file)
+    thread1 = threading.Thread(target=extract_features, args=(pcap_file,video,interval, numberofpackets))
+    thread2 = threading.Thread(target=play_video)
+    # Start threads
+    thread1.start()
+    thread2.start()
+
+    # Wait for both threads to finish
+    thread1.join()
+    thread2.join()
     
-    #play_video('received_video.mp4')
            
-   
-    
 
 delete_directories("/home/best/Desktop/EEE4022S/scripts")
                 
