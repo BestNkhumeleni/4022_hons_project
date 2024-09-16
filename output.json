@@ -13,9 +13,9 @@
     "I13": {
         "segments": [
             {
-                "bitrate": 15745.46533105276,
+                "bitrate": 5248.435557392864,
                 "codec": "h264",
-                "duration": 20,
+                "duration": 15,
                 "fps": 60,
                 "resolution": "1920x1080",
                 "start": 0

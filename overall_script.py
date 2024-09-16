@@ -493,8 +493,8 @@ def setup_mininet_and_transmit(video_file):
 video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4"
 interval = 5 # How often do you want to sample the stream in seconds
 pcap_file = setup_mininet_and_transmit(video)
-
-subprocess.run(["python3", "packet_counter.py", pcap_file])
+delete_directories("/home/best/Desktop/EEE4022S/scripts")
+subprocess.run(["/home/best/miniconda3/bin/python", "packet_counter.py", pcap_file])
 numberofpackets = read_packet_count_from_file('output_packet_count.txt')
 thread1 = threading.Thread(target=extract_features, args=(pcap_file,video,interval, numberofpackets))
 thread2 = threading.Thread(target=play_video)
