@@ -325,7 +325,7 @@ def extract_features(pcap_file, video_path, interval, num_packets):
         for packet in capture:
             #print("yes")
             try:
-                start_time = time.time()
+                start = time.time()
                 total_packets += 1
                 packet_time = float(packet.sniff_timestamp)
                 if hasattr(packet, 'frame_info'):
@@ -338,9 +338,9 @@ def extract_features(pcap_file, video_path, interval, num_packets):
                         start_time = packet_time
                     end_time = packet_time
                 if total_packets >= stop_packets:
-                    end_time = time.time()
+                    end = time.time()
                     # Calculate how long the iteration took
-                    elapsed_time = end_time - start_time
+                    elapsed_time = end - start
                     # Calculate the remaining time to sleep if the iteration finished early
                     time_to_sleep = interval - elapsed_time -0.2
                     if time_to_sleep > 0:
@@ -493,7 +493,7 @@ def setup_mininet_and_transmit(video_file):
 video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4"
 interval = 5 # How often do you want to sample the stream in seconds
 pcap_file = setup_mininet_and_transmit(video)
-delete_directories("/home/best/Desktop/EEE4022S/scripts")
+
 subprocess.run(["/home/best/miniconda3/bin/python", "packet_counter.py", pcap_file])
 numberofpackets = read_packet_count_from_file('output_packet_count.txt')
 thread1 = threading.Thread(target=extract_features, args=(pcap_file,video,interval, numberofpackets))
