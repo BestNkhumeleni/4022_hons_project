@@ -2,9 +2,9 @@
     "I11": {
         "segments": [
             {
-                "bitrate": 0,
+                "bitrate": 192,
                 "codec": "aaclc",
-                "duration": 0,
+                "duration": 80,
                 "start": 0
             }
         ],
@@ -13,11 +13,11 @@
     "I13": {
         "segments": [
             {
-                "bitrate": 5248.435557392864,
+                "bitrate": 228092.4,
                 "codec": "h264",
-                "duration": 15,
-                "fps": 60,
-                "resolution": "1920x1080",
+                "duration": 80,
+                "fps": 30,
+                "resolution": "854x480",
                 "start": 0
             }
         ],
@@ -30,6 +30,6 @@
     "IGen": {
         "device": "pc",
         "displaySize": "1920x1080",
-        "viewingDistance": "150cm"
+        "viewingDistance": 0
     }
 }

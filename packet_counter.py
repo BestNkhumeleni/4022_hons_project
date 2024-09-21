@@ -1,26 +1,48 @@
 import pyshark
 import sys
 
-def count_packets_in_pcap(pcap_file, output_txt_file):
+def count_packets_and_calculate_interval(pcap_file, output_txt_file):
     # Load the pcap file
     cap = pyshark.FileCapture(pcap_file)
     
-    # Count the number of packets
+    # Initialize variables
     packet_count = 0
-    print("Counting packets")
+    total_interval = 0
+    previous_timestamp = None
+
+    print("Counting packets and calculating intervals")
+    
+    # Iterate through packets in the pcap file
     for packet in cap:
         packet_count += 1
-        if packet_count%1000 == 0:
-            print(packet_count)
+        
+        # Get the packet's timestamp
+        current_timestamp = float(packet.sniff_time.timestamp())
+
+        # If there's a previous timestamp, calculate the interval
+        if previous_timestamp is not None:
+            interval = current_timestamp - previous_timestamp
+            total_interval += interval
+
+        # Update the previous timestamp
+        previous_timestamp = current_timestamp
+        
+        # Progress logging for large pcap files
+        if packet_count % 1000 == 0:
+            print(f"Processed {packet_count} packets")
 
     # Close the capture file
     cap.close()
 
-    # Overwrite the text file with just the number of packets
+    # Calculate average interval if there were at least two packets
+    average_interval = total_interval / (packet_count - 1) if packet_count > 1 else 0
+    average_interval *= 1000
+    # Write the results to the text file
     with open(output_txt_file, 'w') as f:
-        f.write(f"{packet_count}")
+        f.write(f"Packet Count: {packet_count}\n")
+        f.write(f"Average Interval: {average_interval} seconds\n")
 
-    print(f"Packet count ({packet_count}) written to {output_txt_file}")
+    print(f"Packet count ({packet_count}) and average interval ({average_interval} seconds) written to {output_txt_file}")
 
 if __name__ == "__main__":
     # Ensure a pcap file is provided as a command-line argument
@@ -32,5 +54,5 @@ if __name__ == "__main__":
     pcap_file = sys.argv[1]
     output_txt_file = 'output_packet_count.txt'
     
-    # Count packets and write to text file
-    count_packets_in_pcap(pcap_file, output_txt_file)
+    # Count packets, calculate interval, and write to text file
+    count_packets_and_calculate_interval(pcap_file, output_txt_file)

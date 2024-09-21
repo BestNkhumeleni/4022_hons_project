@@ -76,12 +76,22 @@ def play_video():
     cv2.destroyAllWindows()
 
 
-def read_packet_count_from_file(output_txt_file):
-    # Read the packet count from the text file as an integer
+def read_output_file(output_txt_file):
+    # Initialize variables to store the values
+    packet_count = None
+    average_interval = None
+
+    # Read the output file
     with open(output_txt_file, 'r') as f:
-        packet_count = int(f.read().strip())
-    
-    return packet_count
+        for line in f:
+            # Check if the line contains packet count
+            if "Packet Count" in line:
+                packet_count = int(line.split(":")[1].strip())
+            # Check if the line contains average interval
+            elif "Average Interval" in line:
+                average_interval = float(line.split(":")[1].strip().split()[0])
+
+    return packet_count, average_interval
 
 
 def get_packet_count_pcapng(capture_file):
@@ -171,9 +181,9 @@ def generate_json(resolution, fps, bitrate, duration, start):
         "I11": {
             "segments": [
                 {
-                    "bitrate": 0,
+                    "bitrate": 192,
                     "codec": "aaclc",
-                    "duration": 0,
+                    "duration": duration,
                     "start": 0
                 }
             ],
@@ -199,7 +209,7 @@ def generate_json(resolution, fps, bitrate, duration, start):
         "IGen": {
             "device": "pc",
             "displaySize": "1920x1080",
-            "viewingDistance": "150cm"
+            "viewingDistance": 0
         }
     }
     
@@ -294,7 +304,7 @@ def predict_from_csv(input_csv):
     return resolution_prediction, fps_prediction
 
 # Function with a while loop
-def extract_features(pcap_file, video_path, interval, num_packets):
+def extract_features(pcap_file, video_path, interval, num_packets, average_interval):
     capture = pyshark.FileCapture(pcap_file, use_json=True, include_raw=False)
     video_name = os.path.basename(pcap_file)
     filename = video_name[:-5]
@@ -312,14 +322,17 @@ def extract_features(pcap_file, video_path, interval, num_packets):
     #idea use the proportion of the capture to that of the video
     
     # t.tic()
-    video_length = 605
+    video_length = get_video_duration_opencv(video_path)
     
    
     # t.toc()
     print("starting:")
     while(current_time<=video_length):
         #print("here?")
+        total_bytes = 0
+        total_packets = 0
         stop_packets = round(num_packets*(current_time/video_length))
+        inv = video_length/current_time
         # t.tic()
         #print(current_time)
         for packet in capture:
@@ -343,8 +356,8 @@ def extract_features(pcap_file, video_path, interval, num_packets):
                     elapsed_time = end - start
                     # Calculate the remaining time to sleep if the iteration finished early
                     time_to_sleep = interval - elapsed_time -0.2
-                    if time_to_sleep > 0:
-                        time.sleep(time_to_sleep)
+                    # if time_to_sleep > 0:
+                    time.sleep(time_to_sleep)
                     break
 
                 # Exit early after 30 seconds
@@ -354,23 +367,19 @@ def extract_features(pcap_file, video_path, interval, num_packets):
                 continue  # Skip packets that don't have the required fields
         capture.close()
         # t.toc()
-        time_intervals = [t2 - t1 for t1, t2 in zip(packet_times[:-1], packet_times[1:])]
-        mean_interval = sum(time_intervals) / len(time_intervals)
         mean_packet_size = sum(packet_sizes) / len(packet_sizes)
-        
-        if mean_interval is not None:
-            mean_interval = mean_interval * 1000
-
+            
+        # total_packets *= inv
+        total_bytes *= inv
         if start_time and end_time:
-            duration = end_time - start_time
-            # print(duration)
+            duration = average_interval
             bit = (total_bytes * 8) / duration  # bits per second
             csvstor = {
             'name': filename,
             'bitrate': bit,
             'num_bytes': total_bytes,
-            'num_packets': total_packets,
-            'interval': mean_interval,
+            'num_packets': num_packets,
+            'interval': average_interval,
             'packet_size': mean_packet_size,
             }
             
@@ -381,7 +390,11 @@ def extract_features(pcap_file, video_path, interval, num_packets):
             os.system(f"rm {out_csv}")
             append_to_csv(out_csv, csvstor)
             resolution,fps = predict_from_csv(out_csv)
+            
+            
             duration = get_video_duration_opencv(video_path)
+            
+            
             bitrate = (total_bytes * 8) / duration
             fps = int(fps)
             res = resolution
@@ -403,6 +416,7 @@ def extract_features(pcap_file, video_path, interval, num_packets):
         
     # duration = get_video_duration_opencv(video_path)
     # bitrate = (total_bytes * 8) / duration
+
     
 def setup_mininet_and_transmit(video_file):
     # Create a network
@@ -493,18 +507,18 @@ def setup_mininet_and_transmit(video_file):
 video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4"
 interval = 5 # How often do you want to sample the stream in seconds
 pcap_file = setup_mininet_and_transmit(video)
-
+delete_directories("/home/best/Desktop/EEE4022S/scripts")
 subprocess.run(["/home/best/miniconda3/bin/python", "packet_counter.py", pcap_file])
-numberofpackets = read_packet_count_from_file('output_packet_count.txt')
-thread1 = threading.Thread(target=extract_features, args=(pcap_file,video,interval, numberofpackets))
-thread2 = threading.Thread(target=play_video)
+numberofpackets, average_interval = read_output_file('output_packet_count.txt')
+thread1 = threading.Thread(target=extract_features, args=(pcap_file,video,interval, numberofpackets, average_interval))
+# thread2 = threading.Thread(target=play_video)
 
 # Start threads
 thread1.start()
-thread2.start()
+# thread2.start()
 
 # Wait for both threads to complete
 thread1.join()
-thread2.join()
+# thread2.join()
 #os.system("python3 -m itu_p1203 output.json")
 
