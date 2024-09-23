@@ -30,7 +30,7 @@ def check_file_size(file_path):
     # Check if the file size is less than 1 MB
     return size_in_mb
         
-def setup_mininet_and_transmit(video_file):
+def setup_mininet_and_transmit(video_file, stream_number):
     # Create a network
     net = Mininet(controller=OVSController)
     
@@ -68,11 +68,9 @@ def setup_mininet_and_transmit(video_file):
     folder_name = video_name[:-4]  # This will extract the last five characters excluding the extension
     
     # Create the folder if it doesn't exist
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
     
     # Start capturing packets on the link between h1 and s1
-    capture_file = folder_name+'.pcap'
+    capture_file = f"{folder_name}_{stream_number}.pcap"
     info(f"*** Capturing packets on link1 (h1 <-> s1) to {capture_file} ***\n")
     h1.cmd(f'tcpdump -i {link1.intf1} -w {capture_file} &')
     
@@ -102,12 +100,30 @@ def setup_mininet_and_transmit(video_file):
     
     # Move the capture file to the folder
     destination_path = "/home/best/Desktop/EEE4022S/Data/pcap_files"
+    
+    
     shutil.move(capture_file, destination_path)
     info(f"*** Moved capture file to {destination_path} ***\n")
     
     # Stop the network
     net.stop()
     info("*** Mininet stopped ***\n")
+
+
+def check_and_recapture(destination_path, video_file, stream_number):
+    capture_file = f"{os.path.basename(video_file)[:-4]}_{stream_number}.pcap"
+    file_path = os.path.join(destination_path, capture_file)
+
+    if os.path.isfile(file_path):
+        while check_file_size(file_path) < 1:
+            print(f"File {file_path} is less than 1MB, deleting and recapturing...")
+            os.remove(file_path)
+            setup_mininet_and_transmit(video_file, stream_number)
+        else:
+            print(f"File {file_path} already exists and is over 1MB, skipping capture.")
+    else:
+        setup_mininet_and_transmit(video_file, stream_number)
+
 
 if __name__ == '__main__':
     delete_directories("/home/best/Desktop/EEE4022S/scripts")
@@ -129,7 +145,7 @@ if __name__ == '__main__':
             
             # Rename the file
             os.rename(old_file, new_file)
-            print(f'Renamed: {old_file} -> {new_file}')
+            #print(f'Renamed: {old_file} -> {new_file}')
 
     print("Renaming completed!")
     print()
@@ -138,42 +154,27 @@ if __name__ == '__main__':
     # Specify the directory path
     directory = '/home/best/Desktop/EEE4022S/Data/Raw_Videos'
     destination_path = "/home/best/Desktop/EEE4022S/Data/pcap_files"
-    files = [f for f in os.listdir(destination_path) if os.path.isfile(os.path.join(destination_path, f))]
+    #files = [f for f in os.listdir(destination_path) if os.path.isfile(os.path.join(destination_path, f))]
     #print(files)
     # Loop through all the files in the directory
     for filename in os.listdir(directory):
-        video_file = directory +"/" + filename
-        # Check if it's a file (not a directory)
-        temp = filename[:-4] + ".pcap"
+        video_file = os.path.join(directory, filename)
         
-        if temp in files: #check if video has already been streamed succesfully
-            file = os.path.join(destination_path, temp)
-            # print(f"{file}")
-            if check_file_size(os.path.join(destination_path, temp)) > 1:
-                continue
-            else:
-                os.system(f"rm {file}")
-                
-        elif os.path.isfile(os.path.join(directory, filename)):
-            setup_mininet_and_transmit(video_file)
-            print()
-            #os.system("sudo mn -c")
-    
-    
-    
+        for stream_number in range(1, 4):
+            check_and_recapture(destination_path, video_file, stream_number)
+
     for filename in os.listdir(destination_path):
-        # Check if it's a file (not a directory)
         file = os.path.join(destination_path, filename)
-        if os.path.isfile(file):
-            while check_file_size(file)<1: #if it failed, keep trying until it doesnt
-                print()
-                print("There was a problem during capture for "+filename)
-                video_name = filename[:-5]
-                video_file = directory +"/" + video_name + ".mp4"
-                print("Recapturing")
-                os.system(f"rm {file}")
-                setup_mininet_and_transmit(video_file)
-                print()
+        if os.path.isfile(file) and check_file_size(file) < 1:
+            video_name = filename[:-5]
+            video_file = os.path.join(directory, video_name + ".mp4")
+            stream_number = int(video_name[-1:])
+            print("Recapturing due to failure...")
+            os.remove(file)
+            setup_mininet_and_transmit(video_file,stream_number)
+            check_and_recapture(destination_path, video_file, stream_number)
+    
+    
 
 delete_directories("/home/best/Desktop/EEE4022S/scripts")
                 
