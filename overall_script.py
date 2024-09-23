@@ -1,24 +1,15 @@
 
 from mininet.net import Mininet
 from mininet.node import OVSController
-from mininet.log import setLogLevel, info
+from mininet.log import info
 from mininet.util import dumpNodeConnections
-
+import matplotlib
+matplotlib.use('Agg')
 import threading
-import time
 import cv2
-import pyshark
-from concurrent.futures import ThreadPoolExecutor
-import time
 import shutil
-import cv2
 import csv
 import pyshark
-import threading
-import csv
-import shutil
-from pytictoc import TicToc
-import cv2
 import time
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -29,19 +20,8 @@ from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import StandardScaler
 from imblearn.over_sampling import SMOTE
 import os
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import LabelEncoder
-import re
-import cv2
-import subprocess
 import json
-import csv
-from imblearn.over_sampling import SMOTE
+
 
 
 def play_video():
@@ -303,7 +283,7 @@ def predict_from_csv(input_csv):
     # Return the best predictions
     return resolution_prediction, fps_prediction
 
-# Function with a while loop
+
 def extract_features(pcap_file, video_path, interval, num_packets, average_interval):
     capture = pyshark.FileCapture(pcap_file, use_json=True, include_raw=False)
     video_name = os.path.basename(pcap_file)
@@ -416,8 +396,12 @@ def extract_features(pcap_file, video_path, interval, num_packets, average_inter
         
     # duration = get_video_duration_opencv(video_path)
     # bitrate = (total_bytes * 8) / duration
-
     
+
+
+#os.system("/home/best/miniconda3/bin/python -m itu_p1203 output.json")
+
+
 def setup_mininet_and_transmit(video_file):
     # Create a network
     net = Mininet(controller=OVSController)
@@ -503,22 +487,25 @@ def setup_mininet_and_transmit(video_file):
     return capture_file
 
 
+if __name__ == "__main__":
+    video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4"
+    interval = 10 # How often do you want to sample the stream in seconds
+    # pcap_file = setup_mininet_and_transmit(video)
+    pcap_file = "/home/best/Desktop/EEE4022S/scripts/test_480p.pcap"
+    delete_directories("/home/best/Desktop/EEE4022S/scripts")
+    #subprocess.run(["/home/best/miniconda3/bin/python", "packet_counter.py", pcap_file])
+    numberofpackets, average_interval = read_output_file('output_packet_count.txt')
+    
+    
+    thread1 = threading.Thread(target=extract_features, args=(pcap_file,video,interval, numberofpackets, average_interval))
+    # thread2 = threading.Thread(target=play_video)
 
-video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4"
-interval = 5 # How often do you want to sample the stream in seconds
-pcap_file = setup_mininet_and_transmit(video)
-delete_directories("/home/best/Desktop/EEE4022S/scripts")
-subprocess.run(["/home/best/miniconda3/bin/python", "packet_counter.py", pcap_file])
-numberofpackets, average_interval = read_output_file('output_packet_count.txt')
-thread1 = threading.Thread(target=extract_features, args=(pcap_file,video,interval, numberofpackets, average_interval))
-# thread2 = threading.Thread(target=play_video)
+    # Start threads
+    thread1.start()
+    # thread2.start()
 
-# Start threads
-thread1.start()
-# thread2.start()
-
-# Wait for both threads to complete
-thread1.join()
-# thread2.join()
-#os.system("python3 -m itu_p1203 output.json")
+    # Wait for both threads to complete
+    thread1.join()
+    # thread2.join()
+    #os.system("python3 -m itu_p1203 output.json")
 
