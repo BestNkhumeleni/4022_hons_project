@@ -1,2 +1,2 @@
-Packet Count: 1683
-Average Interval: 1.89879490560924 seconds
+Packet Count: 23207
+Average Interval: 0.18093561926843954 seconds

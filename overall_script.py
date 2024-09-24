@@ -36,6 +36,19 @@ fps_values = []
 time_values = []
 qoe_values = []
 
+
+def write_to_txt(time_values, qoe_values, resolutions, fps_values, filename='graphs.txt'):
+    if not (len(time_values) == len(qoe_values) == len(resolutions) == len(fps_values)):
+        raise ValueError("All arrays must have the same length.")
+
+    with open(filename, 'w') as file:
+        file.write("Time\tQoE\tResolution\tFPS\n")  # Writing headers
+        for i in range(len(time_values)):
+            file.write(f"{time_values[i]}\t{qoe_values[i]}\t{resolutions[i]}\t{fps_values[i]}\n")
+
+    print(f"Data successfully written to {filename}")
+
+
 def find_number_in_qoe(filename='qoe.txt'):
     try:
         with open(filename, 'r') as file:
@@ -313,6 +326,7 @@ def load_model(pkl_file):
         model = pickle.load(file)
     return model
 
+
 def load_label_encoder(pkl_file):
     """Load the label encoder from a .pkl file."""
     with open(pkl_file, 'rb') as file:
@@ -392,6 +406,10 @@ def update_and_show_plot():
     plt.tight_layout()
     plt.draw()  # Redraw the current figure
 
+def convert_seconds(seconds):
+    minutes = seconds // 60
+    remaining_seconds = seconds % 60
+    return f"{minutes} minute(s) and {remaining_seconds} second(s)"
 
 def extract_features(pcap_file, video_path, interval, num_packets, average_interval):
     capture = pyshark.FileCapture(pcap_file, use_json=True, include_raw=False)
@@ -460,7 +478,7 @@ def extract_features(pcap_file, video_path, interval, num_packets, average_inter
         mean_packet_size = sum(packet_sizes) / len(packet_sizes)
             
         # total_packets *= inv
-        total_bytes *= inv
+        # total_bytes *= inv
         if start_time and end_time:
             duration = average_interval
             bit = (total_bytes * 8) / duration  # bits per second
@@ -501,7 +519,12 @@ def extract_features(pcap_file, video_path, interval, num_packets, average_inter
             time_values.append(current_time)
             os.system("/home/best/miniconda3/bin/python -m itu_p1203 output.json > qoe.txt")
             qoe_values.append(find_number_in_qoe())
-            #subprocess.run(["python3 -m", "itu_p1203", "output.json"])
+            print(convert_seconds(current_time))
+            print(f"{current_time/duration * 100}% through the video")
+            print(qoe_values[-1])
+            
+            write_to_txt(time_values,qoe_values,resolutions,fps_values)
+            #subprocess.run(["/home/best/miniconda3/bin/python", "graphs.py"])
          
             
         current_time+=interval
@@ -601,12 +624,12 @@ def setup_mininet_and_transmit(video_file):
 
 if __name__ == "__main__":
     
-    video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4"
+    video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/bold_colours_720p_30.mp4"
     interval = 20 # How often do you want to sample the stream in seconds
-    pcap_file = setup_mininet_and_transmit(video)
-    # pcap_file = "/home/best/Desktop/EEE4022S/scripts/test_480p.pcap"
+    # pcap_file = setup_mininet_and_transmit(video)
+    pcap_file = "/home/best/Desktop/EEE4022S/scripts/bold_colours_720p_30.pcap"
     delete_directories("/home/best/Desktop/EEE4022S/scripts")
-    subprocess.run(["/home/best/miniconda3/bin/python", "packet_counter.py", pcap_file])
+    # subprocess.run(["/home/best/miniconda3/bin/python", "packet_counter.py", pcap_file])
     numberofpackets, average_interval = read_output_file('output_packet_count.txt')
     
     thread1 = threading.Thread(target=extract_features, args=(pcap_file,video,interval, numberofpackets, average_interval))
@@ -618,5 +641,6 @@ if __name__ == "__main__":
     thread1.join()
     thread2.join()
     #os.system("python3 -m itu_p1203 output.json")
-    update_and_show_plot()
-    plt.show()
+    
+    # update_and_show_plot()
+    # plt.show()
