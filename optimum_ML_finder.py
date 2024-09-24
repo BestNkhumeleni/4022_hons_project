@@ -30,7 +30,7 @@ def save_to_csv(table_data, filename):
 def main():
     resolution_above_accuracy = False
     fps_above_accuracy = False
-    accuracy = 86
+    accuracy = 85
 
     while not (resolution_above_accuracy and fps_above_accuracy):
         resolution_acc, fps_acc, res_labels, res_features, fps_labels, fps_features = run_ml_model()

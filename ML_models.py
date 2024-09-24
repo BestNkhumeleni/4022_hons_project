@@ -11,6 +11,7 @@ import cv2
 import subprocess
 import json
 import csv
+import pickle
 from imblearn.over_sampling import SMOTE
 
 
@@ -25,14 +26,15 @@ def read_bitrate_from_csv(csv_file_path):
         bitrate = bitrates[0] * 0.000125 
     return bitrate
 
+
 def generate_json(resolution, fps, bitrate, duration, start):
     data = {
         "I11": {
             "segments": [
                 {
-                    "bitrate": 0,
+                    "bitrate": 192,
                     "codec": "aaclc",
-                    "duration": 0,
+                    "duration": duration,
                     "start": 0
                 }
             ],
@@ -58,7 +60,7 @@ def generate_json(resolution, fps, bitrate, duration, start):
         "IGen": {
             "device": "pc",
             "displaySize": "1920x1080",
-            "viewingDistance": "150cm"
+            "viewingDistance": 0
         }
     }
     
@@ -86,6 +88,7 @@ def get_video_info(video_path):
     #print(height)
     return width, height, fps
 
+
 def get_ffprobe_metadata(video_path):
     # Use ffprobe to get more detailed metadata if needed
     command = [
@@ -100,9 +103,6 @@ def get_ffprobe_metadata(video_path):
     return json.loads(result.stdout)
 
 
-
-
-
 def extract_features_resolution(folder_path):
     # Initialize lists to hold the features and labels
     features = []
@@ -114,13 +114,8 @@ def extract_features_resolution(folder_path):
     # Loop through each file in the folder
     for filename in os.listdir(folder_path):
         if filename.endswith(".csv"):
-            # Extract the resolution from the filename
-            resolution_match = resolution_pattern.search(filename)
-            if resolution_match:
-                resolution = resolution_match.group(0)
-            else:
-                videos_path = video_path + filename[:-4] +".mp4"
-                width, resolution, fps = get_video_info(videos_path)
+            videos_path = video_path + filename[:-6] +".mp4"
+            width, resolution, fps = get_video_info(videos_path)
 
             # Read the CSV file
             file_path = os.path.join(folder_path, filename)
@@ -137,8 +132,10 @@ def extract_features_resolution(folder_path):
     # Convert lists to DataFrame and Series
     x = pd.DataFrame(features)
     y = pd.Series(labels)
-    # print(x,y)
+    
     X_resampled, y_resampled = smote.fit_resample(x, y) #generates synthetic data using smote.
+    
+   # print(X_resampled,y_resampled)
     return X_resampled, y_resampled
 
 
@@ -155,7 +152,7 @@ def random_forest_model_resolution(X,y, testing_data):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     # Train a Random Forest Classifier
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model = RandomForestClassifier(n_estimators=1000, random_state=42)
     model.fit(X_train_scaled, y_train)
 
     # Predict on the test set
@@ -175,6 +172,17 @@ def random_forest_model_resolution(X,y, testing_data):
     predicted_resolution = model.predict(unseen_features_scaled)
     predicted_label = label_encoder.inverse_transform(predicted_resolution)
 
+    # joblib.dump(model, 'resolution_model.pkl')
+    if accuracy_score(y_test, y_pred)*100 > 85:
+        with open('resolution_model.pkl', 'wb') as f:
+            pickle.dump(model, f)
+        
+        with open('label_encoder_resolution.pkl', 'wb') as file:
+            pickle.dump(label_encoder, file)
+        
+        with open("res_scaler", "wb") as b:
+            pickle.dump(scaler, b)
+    
     print("Predicted Resolution:", predicted_label[0])
     print()
     
@@ -188,33 +196,19 @@ def random_forest_model_fps(folder_path, testing_data):
     features = []
     labels = []
 
-    # Regular expression to extract resolution from filename
-    resolution_pattern = re.compile(r'(360p|480p|720p|1080p)')
-    frame_rate_30_pattern = re.compile(r'30')
-    frame_rate_60_pattern = re.compile(r'60')
 
     # Loop through each file in the folder
     for filename in os.listdir(folder_path):
         if filename.endswith(".csv"):
-            # Extract the resolution from the filename
-            resolution_match = resolution_pattern.search(filename)
-            if resolution_match:
-                resolution = resolution_match.group(0)
-            else:
-                videos_path = video_path + filename[:-4] +".mp4"
-                width, resolution, frame_rate = get_video_info(videos_path)
+            videos_path = video_path + filename[:-6] +".mp4"
+            width, resolution, frame_rate = get_video_info(videos_path)
             # Determine the ground truth frame rate based on the filename
-            if resolution in ['1080p', '720p']:
-                if resolution == '720p' and frame_rate_30_pattern.search(filename):
-                    frame_rate = 30
-                    # print("were in")
-                else:
-                    frame_rate = 60
-            else:
-                frame_rate = 60 if frame_rate_60_pattern.search(filename) else 30
             
             frame_rate = round(frame_rate)
-            # Read the CSV file
+            
+            if frame_rate == 24:
+                frame_rate = 30
+                
             file_path = os.path.join(folder_path, filename)
             df = pd.read_csv(file_path)
             
@@ -229,7 +223,7 @@ def random_forest_model_fps(folder_path, testing_data):
     X_resampled = pd.DataFrame(features)
     y_resampled = pd.Series(labels)
     X, y = smote.fit_resample(X_resampled, y_resampled) #generates synthetic data using smote
-    # Train-test split
+    # print(X,y)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # Feature scaling
@@ -238,7 +232,7 @@ def random_forest_model_fps(folder_path, testing_data):
     X_test_scaled = scaler.transform(X_test)
 
     # Train a Random Forest Classifier
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model = RandomForestClassifier(n_estimators=1000, random_state=42)
     model.fit(X_train_scaled, y_train)
 
     # Predict on the test set
@@ -254,23 +248,35 @@ def random_forest_model_fps(folder_path, testing_data):
     unseen_df = pd.read_csv(testing_data)
     unseen_features = unseen_df[['bitrate', 'num_bytes', 'num_packets', 'interval', 'packet_size']].mean(axis=0)
     unseen_features_scaled = scaler.transform([unseen_features])
-
     predicted_frame_rate = model.predict(unseen_features_scaled)
+    
+    # joblib.dump(model, 'FPS_model.pkl')
+    
+    if accuracy_score(y_test, y_pred)*100 > 85:
+        with open('fps_model.pkl', 'wb') as f:
+            pickle.dump(model, f)
+            
+        with open("fps_scaler", "wb") as b:
+            pickle.dump(scaler, b)
+    
     print("Predicted Frame Rate:", predicted_frame_rate[0])
     print()
     return predicted_frame_rate[0]
 
 training_data = "/home/best/Desktop/EEE4022S/Data/training_data/"
-testing_data = "test_480p.csv"
+testing_data = "/home/best/Desktop/EEE4022S/Data/testing_data/bold_colours_720p_30_2.csv"
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_colwidth', None)
 pd.set_option('display.width', None)
 
 x,y = extract_features_resolution(training_data)
+
 res = random_forest_model_resolution(x,y,testing_data)
 fps = random_forest_model_fps(training_data, testing_data)
 bitrate = read_bitrate_from_csv(testing_data)
+
+print(res,fps)
 
 #print(type(fps))
 if res == "720p":
@@ -283,4 +289,4 @@ elif res == "480p":
     res = "854x480"
 
 generate_json(res,int(fps),bitrate,30,0)
-os.system("python3 -m itu_p1203 output.json")
+#os.system("python3 -m itu_p1203 output.json")

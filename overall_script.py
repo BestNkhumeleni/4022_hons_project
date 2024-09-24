@@ -1,10 +1,10 @@
-
 from mininet.net import Mininet
 from mininet.node import OVSController
 from mininet.log import info
 from mininet.util import dumpNodeConnections
 import matplotlib
 matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import threading
 import cv2
 import shutil
@@ -20,8 +20,32 @@ from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import StandardScaler
 from imblearn.over_sampling import SMOTE
 import os
+# os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 import json
+import re
+import subprocess
+import pickle
+# encript the transmission,
+# introducing some unrealiability
+# specify the drop rate and error 
+# simulate delays
+# 
 
+resolutions = []
+fps_values = []
+time_values = []
+qoe_values = []
+
+def find_number_in_qoe(filename='qoe.txt'):
+    try:
+        with open(filename, 'r') as file:
+            for line in file:
+                if '"O46": ' in line:
+                    qoe_match = re.search(r'"O46": ([\d.]+)', line)
+                    return float(qoe_match.group(1))
+        print("O46: not found in the file.")
+    except FileNotFoundError:
+        print(f"The file {filename} does not exist.")
 
 
 def play_video():
@@ -197,91 +221,176 @@ def generate_json(resolution, fps, bitrate, duration, start):
         json.dump(data, json_file, indent=4)
 
 
+# def predict_from_csv(input_csv):
+#     # Initialize SMOTE
+#     smote = SMOTE()
+
+#     # Load the training data for resolution and fps prediction
+#     X_resolution = pd.read_csv('features_resolution.csv')  # Input features for resolution
+#     y_resolution = pd.read_csv('labels_resolution.csv')    # Labels for resolution
+#     X_fps = pd.read_csv('features_fps.csv')  # Input features for fps
+#     y_fps = pd.read_csv('labels_fps.csv')    # Labels for fps
+
+#     # Drop unnecessary columns from the datasets
+#     y_fps = y_fps.drop(columns=['emp'])
+#     X_resolution = X_resolution.drop(columns=['index'])
+#     y_resolution = y_resolution.drop(columns=['index', 'emp'])
+#     X_fps = X_fps.drop(columns=['index'])
+#     y_fps = y_fps.drop(columns=['index'])
+
+#     # Apply SMOTE for resolution data
+#     X_resolution, y_resolution = smote.fit_resample(X_resolution, y_resolution)
+#     # X_fps, y_fps = smote.fit_resample(X_fps, y_fps)  # Uncomment for fps if needed
+
+#     # Apply StandardScaler for feature scaling
+#     scaler = StandardScaler()
+#     X_resolution_scaled = scaler.fit_transform(X_resolution)
+#     X_fps_scaled = scaler.fit_transform(X_fps)
+
+#     # Train-test split for both resolution and fps prediction
+#     X_train_res, X_test_res, y_train_res, y_test_res = train_test_split(X_resolution_scaled, y_resolution, test_size=0.3, random_state=42)
+#     X_train_fps, X_test_fps, y_train_fps, y_test_fps = train_test_split(X_fps_scaled, y_fps, test_size=0.3, random_state=42)
+
+#     # Define models for both resolution and fps prediction
+#     models_resolution = {
+#         "Random Forest": RandomForestClassifier(),
+#         "SVM": SVC(),
+#         "Logistic Regression": LogisticRegression(max_iter=5000)
+#     }
+#     models_fps = {
+#         "Random Forest": RandomForestClassifier(),
+#         "SVM": SVC(),
+#         "Logistic Regression": LogisticRegression(max_iter=5000)
+#     }
+
+#     # Train and evaluate models function
+#     def train_and_evaluate(X_train, X_test, y_train, y_test, models):
+#         trained_models = {}
+#         model_accuracies = {}
+#         for name, model in models.items():
+#             model.fit(X_train, y_train.values.ravel())  # Flatten y for training
+#             y_pred = model.predict(X_test)
+#             accuracy = accuracy_score(y_test, y_pred)
+#             trained_models[name] = model
+#             model_accuracies[name] = accuracy
+#             print(f"{name} Accuracy: {accuracy:.4f}")
+#         # Find the model with the highest accuracy
+#         best_model_name = max(model_accuracies, key=model_accuracies.get)
+#         best_model = trained_models[best_model_name]
+#         return best_model, trained_models
+
+#     # Train models for resolution prediction and get the best one
+#     print("Training Resolution Models:")
+#     best_resolution_model, trained_resolution_models = train_and_evaluate(X_train_res, X_test_res, y_train_res, y_test_res, models_resolution)
+
+#     # Train models for fps prediction and get the best one
+#     print("\nTraining FPS Models:")
+#     best_fps_model, trained_fps_models = train_and_evaluate(X_train_fps, X_test_fps, y_train_fps, y_test_fps, models_fps)
+
+#     # Load the new input data for prediction
+#     input_data = pd.read_csv(input_csv)
+
+#     # Drop the video name (or any unnecessary) column for prediction
+#     input_features = input_data.drop(columns=['name'])
+
+#     # Scale the input data for prediction
+#     input_features_scaled = scaler.transform(input_features)
+
+#     # Predict resolution using the best model
+#     resolution_prediction = best_resolution_model.predict(input_features_scaled)[0]
+#     print(f"\nBest Model predicts Resolution: {resolution_prediction}")
+
+#     # Predict fps using the best model
+#     fps_prediction = best_fps_model.predict(input_features_scaled)[0]
+#     print(f"Best Model predicts FPS: {fps_prediction}")
+
+#     # Return the best predictions
+#     return resolution_prediction, fps_prediction
+
+def load_model(pkl_file):
+    """Load a trained model from a .pkl file."""
+    with open(pkl_file, 'rb') as file:
+        model = pickle.load(file)
+    return model
+
+def load_label_encoder(pkl_file):
+    """Load the label encoder from a .pkl file."""
+    with open(pkl_file, 'rb') as file:
+        label_encoder = pickle.load(file)
+    return label_encoder
+
 def predict_from_csv(input_csv):
-    # Initialize SMOTE
-    smote = SMOTE()
+    # Load the pre-trained models
+    resolution_model = load_model('/home/best/Desktop/EEE4022S/scripts/resolution_model.pkl')  # Replace with actual file path
+    fps_model = load_model('/home/best/Desktop/EEE4022S/scripts/fps_model.pkl')  # Replace with actual file path
 
-    # Load the training data for resolution and fps prediction
-    X_resolution = pd.read_csv('features_resolution.csv')  # Input features for resolution
-    y_resolution = pd.read_csv('labels_resolution.csv')    # Labels for resolution
-    X_fps = pd.read_csv('features_fps.csv')  # Input features for fps
-    y_fps = pd.read_csv('labels_fps.csv')    # Labels for fps
+    # Load the label encoder for resolution
+    resolution_label_encoder = load_label_encoder('/home/best/Desktop/EEE4022S/scripts/label_encoder_resolution.pkl')  # Replace with actual file path
 
-    # Drop unnecessary columns from the datasets
-    y_fps = y_fps.drop(columns=['emp'])
-    X_resolution = X_resolution.drop(columns=['index'])
-    y_resolution = y_resolution.drop(columns=['index', 'emp'])
-    X_fps = X_fps.drop(columns=['index'])
-    y_fps = y_fps.drop(columns=['index'])
-
-    # Apply SMOTE for resolution data
-    X_resolution, y_resolution = smote.fit_resample(X_resolution, y_resolution)
-    # X_fps, y_fps = smote.fit_resample(X_fps, y_fps)  # Uncomment for fps if needed
-
-    # Apply StandardScaler for feature scaling
-    scaler = StandardScaler()
-    X_resolution_scaled = scaler.fit_transform(X_resolution)
-    X_fps_scaled = scaler.fit_transform(X_fps)
-
-    # Train-test split for both resolution and fps prediction
-    X_train_res, X_test_res, y_train_res, y_test_res = train_test_split(X_resolution_scaled, y_resolution, test_size=0.3, random_state=42)
-    X_train_fps, X_test_fps, y_train_fps, y_test_fps = train_test_split(X_fps_scaled, y_fps, test_size=0.3, random_state=42)
-
-    # Define models for both resolution and fps prediction
-    models_resolution = {
-        "Random Forest": RandomForestClassifier(),
-        "SVM": SVC(),
-        "Logistic Regression": LogisticRegression(max_iter=5000)
-    }
-    models_fps = {
-        "Random Forest": RandomForestClassifier(),
-        "SVM": SVC(),
-        "Logistic Regression": LogisticRegression(max_iter=5000)
-    }
-
-    # Train and evaluate models function
-    def train_and_evaluate(X_train, X_test, y_train, y_test, models):
-        trained_models = {}
-        model_accuracies = {}
-        for name, model in models.items():
-            model.fit(X_train, y_train.values.ravel())  # Flatten y for training
-            y_pred = model.predict(X_test)
-            accuracy = accuracy_score(y_test, y_pred)
-            trained_models[name] = model
-            model_accuracies[name] = accuracy
-            print(f"{name} Accuracy: {accuracy:.4f}")
-        # Find the model with the highest accuracy
-        best_model_name = max(model_accuracies, key=model_accuracies.get)
-        best_model = trained_models[best_model_name]
-        return best_model, trained_models
-
-    # Train models for resolution prediction and get the best one
-    print("Training Resolution Models:")
-    best_resolution_model, trained_resolution_models = train_and_evaluate(X_train_res, X_test_res, y_train_res, y_test_res, models_resolution)
-
-    # Train models for fps prediction and get the best one
-    print("\nTraining FPS Models:")
-    best_fps_model, trained_fps_models = train_and_evaluate(X_train_fps, X_test_fps, y_train_fps, y_test_fps, models_fps)
-
-    # Load the new input data for prediction
+    # Load and preprocess the new input data for prediction
     input_data = pd.read_csv(input_csv)
 
     # Drop the video name (or any unnecessary) column for prediction
-    input_features = input_data.drop(columns=['name'])
+    input_features = input_data[['bitrate', 'num_bytes', 'num_packets', 'interval', 'packet_size']].mean(axis=0)
 
-    # Scale the input data for prediction
-    input_features_scaled = scaler.transform(input_features)
+    # Scale the input data using a scaler (assumed to have been saved during training)
+    fps_scaler = load_model("/home/best/Desktop/EEE4022S/scripts/fps_scaler")
+    res_scaler = load_model("/home/best/Desktop/EEE4022S/scripts/res_scaler")
+    # input_features_scaled = scaler.fit_transform(input_features)  # Adjust this if the scaler was saved separately
+    
+    unseen_features_scaled_fps = fps_scaler.transform([input_features])
+    unseen_features_scaled_res = res_scaler.transform([input_features])
+    # # Predict resolution using the pre-trained model
+    resolution_prediction_encoded = resolution_model.predict(unseen_features_scaled_res)[0]
+    # # Inverse transform the encoded resolution prediction to get the original label
+    resolution_prediction = resolution_label_encoder.inverse_transform([resolution_prediction_encoded])[0]
+    
+    print(f"\nPredicted Resolution: {resolution_prediction}")
 
-    # Predict resolution using the best model
-    resolution_prediction = best_resolution_model.predict(input_features_scaled)[0]
-    print(f"\nBest Model predicts Resolution: {resolution_prediction}")
-
-    # Predict fps using the best model
-    fps_prediction = best_fps_model.predict(input_features_scaled)[0]
-    print(f"Best Model predicts FPS: {fps_prediction}")
-
+    # Predict fps using the pre-trained model
+    fps_prediction = fps_model.predict(unseen_features_scaled_fps)[0]
+    print(f"Predicted FPS: {fps_prediction}")
+    # resolution_prediction = ""
     # Return the best predictions
     return resolution_prediction, fps_prediction
+
+def update_and_show_plot():
+    """
+    Updates and shows the FPS, Resolution, and QoE plots in real-time.
+
+    :param resolutions: List of resolution values over time
+    :param fps_values: List of FPS values over time
+    :param qoe_values: List of QoE values over time
+    :param time_values: List of time points corresponding to resolutions, FPS, and QoE values
+    """
+    plt.clf()  # Clear the previous plots to update them
+
+    # Create subplots for Resolution, FPS, and QoE
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 8))
+
+    # Plot resolution over time
+    ax1.plot(time_values, resolutions, label='Resolution', color='blue')
+    ax1.set_title('Resolution Over Time')
+    ax1.set_xlabel('Time (s)')
+    ax1.set_ylabel('Resolution (px)')
+    ax1.legend()
+
+    # Plot FPS over time
+    ax2.plot(time_values, fps_values, label='FPS', color='orange')
+    ax2.set_title('FPS Over Time')
+    ax2.set_xlabel('Time (s)')
+    ax2.set_ylabel('FPS')
+    ax2.legend()
+
+    # Plot QoE over time
+    ax3.plot(time_values, qoe_values, label='QoE', color='green')
+    ax3.set_title('QoE Over Time')
+    ax3.set_xlabel('Time (s)')
+    ax3.set_ylabel('QoE')
+    ax3.legend()
+
+    plt.tight_layout()
+    plt.draw()  # Redraw the current figure
 
 
 def extract_features(pcap_file, video_path, interval, num_packets, average_interval):
@@ -303,8 +412,9 @@ def extract_features(pcap_file, video_path, interval, num_packets, average_inter
     
     # t.tic()
     video_length = get_video_duration_opencv(video_path)
+    # Initialize lists for plotting
+
     
-   
     # t.toc()
     print("starting:")
     while(current_time<=video_length):
@@ -362,7 +472,6 @@ def extract_features(pcap_file, video_path, interval, num_packets, average_inter
             'interval': average_interval,
             'packet_size': mean_packet_size,
             }
-            
             print(f"Analysis complete, feature extracted for {filename} are:")
             print(csvstor)
             print()
@@ -370,14 +479,11 @@ def extract_features(pcap_file, video_path, interval, num_packets, average_inter
             os.system(f"rm {out_csv}")
             append_to_csv(out_csv, csvstor)
             resolution,fps = predict_from_csv(out_csv)
-            
-            
             duration = get_video_duration_opencv(video_path)
-            
-            
             bitrate = (total_bytes * 8) / duration
             fps = int(fps)
             res = resolution
+            
             if res == "720p":
                 res = "1280x720"
             elif res == "1080p":
@@ -388,7 +494,13 @@ def extract_features(pcap_file, video_path, interval, num_packets, average_inter
                 res = "854x480"
             generate_json(res,fps,bitrate,current_time,0)
             print()
-            os.system("/home/best/miniconda3/bin/python -m itu_p1203 output.json")
+            
+            res_value = int(resolution.replace('p', '')) if 'p' in resolution else 0
+            resolutions.append(res_value)
+            fps_values.append(fps)
+            time_values.append(current_time)
+            os.system("/home/best/miniconda3/bin/python -m itu_p1203 output.json > qoe.txt")
+            qoe_values.append(find_number_in_qoe())
             #subprocess.run(["python3 -m", "itu_p1203", "output.json"])
          
             
@@ -488,24 +600,23 @@ def setup_mininet_and_transmit(video_file):
 
 
 if __name__ == "__main__":
+    
     video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/test_480p.mp4"
-    interval = 10 # How often do you want to sample the stream in seconds
-    # pcap_file = setup_mininet_and_transmit(video)
-    pcap_file = "/home/best/Desktop/EEE4022S/scripts/test_480p.pcap"
+    interval = 20 # How often do you want to sample the stream in seconds
+    pcap_file = setup_mininet_and_transmit(video)
+    # pcap_file = "/home/best/Desktop/EEE4022S/scripts/test_480p.pcap"
     delete_directories("/home/best/Desktop/EEE4022S/scripts")
-    #subprocess.run(["/home/best/miniconda3/bin/python", "packet_counter.py", pcap_file])
+    subprocess.run(["/home/best/miniconda3/bin/python", "packet_counter.py", pcap_file])
     numberofpackets, average_interval = read_output_file('output_packet_count.txt')
     
-    
     thread1 = threading.Thread(target=extract_features, args=(pcap_file,video,interval, numberofpackets, average_interval))
-    # thread2 = threading.Thread(target=play_video)
-
+    thread2 = threading.Thread(target=play_video)
     # Start threads
     thread1.start()
-    # thread2.start()
-
+    thread2.start()
     # Wait for both threads to complete
     thread1.join()
-    # thread2.join()
+    thread2.join()
     #os.system("python3 -m itu_p1203 output.json")
-
+    update_and_show_plot()
+    plt.show()

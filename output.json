@@ -4,7 +4,7 @@
             {
                 "bitrate": 192,
                 "codec": "aaclc",
-                "duration": 80,
+                "duration": 60,
                 "start": 0
             }
         ],
@@ -13,9 +13,9 @@
     "I13": {
         "segments": [
             {
-                "bitrate": 228092.4,
+                "bitrate": 525701.0666666667,
                 "codec": "h264",
-                "duration": 80,
+                "duration": 60,
                 "fps": 30,
                 "resolution": "854x480",
                 "start": 0
