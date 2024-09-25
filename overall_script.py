@@ -477,7 +477,6 @@ def extract_features(pcap_file, video_path, interval, num_packets, average_inter
         # t.toc()
         mean_packet_size = sum(packet_sizes) / len(packet_sizes)
             
-        # total_packets *= inv
         # total_bytes *= inv
         if start_time and end_time:
             duration = average_interval
@@ -523,10 +522,10 @@ def extract_features(pcap_file, video_path, interval, num_packets, average_inter
             print(f"{current_time/duration * 100}% through the video")
             print(qoe_values[-1])
             
-            write_to_txt(time_values,qoe_values,resolutions,fps_values)
+            
             #subprocess.run(["/home/best/miniconda3/bin/python", "graphs.py"])
          
-            
+        write_to_txt(time_values,qoe_values,resolutions,fps_values)
         current_time+=interval
         
     # duration = get_video_duration_opencv(video_path)
@@ -624,22 +623,23 @@ def setup_mininet_and_transmit(video_file):
 
 if __name__ == "__main__":
     
-    video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/bold_colours_720p_30.mp4"
-    interval = 20 # How often do you want to sample the stream in seconds
-    # pcap_file = setup_mininet_and_transmit(video)
-    pcap_file = "/home/best/Desktop/EEE4022S/scripts/bold_colours_720p_30.pcap"
+    video = "/home/best/Desktop/EEE4022S/Data/Raw_Videos/360p.mp4"
+    interval = 10 # How often do you want to sample the stream in seconds
+    pcap_file = setup_mininet_and_transmit(video)
+    # pcap_file = "/home/best/Desktop/EEE4022S/scripts/bold_colours_720p_30.pcap"
     delete_directories("/home/best/Desktop/EEE4022S/scripts")
-    # subprocess.run(["/home/best/miniconda3/bin/python", "packet_counter.py", pcap_file])
+    subprocess.run(["/home/best/miniconda3/bin/python", "packet_counter.py", pcap_file])
     numberofpackets, average_interval = read_output_file('output_packet_count.txt')
     
     thread1 = threading.Thread(target=extract_features, args=(pcap_file,video,interval, numberofpackets, average_interval))
-    thread2 = threading.Thread(target=play_video)
+    # thread2 = threading.Thread(target=play_video)
     # Start threads
     thread1.start()
-    thread2.start()
+    # thread2.start()
     # Wait for both threads to complete
     thread1.join()
-    thread2.join()
+    # write_to_txt(time_values,qoe_values,resolutions,fps_values)
+    # thread2.join()
     #os.system("python3 -m itu_p1203 output.json")
     
     # update_and_show_plot()

@@ -1,10 +1,11 @@
 import subprocess
 import re
+import os
 import pandas as pd
 
 def run_ml_model():
     # Run the ML_models.py file and capture the output
-    result = subprocess.run(['python', 'ML_models.py'], capture_output=True, text=True)
+    result = subprocess.run(['/home/best/miniconda3/bin/python', 'ML_models.py'], capture_output=True, text=True)
     output = result.stdout
 
     # Extract accuracy values using regular expressions
@@ -30,12 +31,12 @@ def save_to_csv(table_data, filename):
 def main():
     resolution_above_accuracy = False
     fps_above_accuracy = False
-    accuracy = 85
+    # accuracy = 
 
     while not (resolution_above_accuracy and fps_above_accuracy):
         resolution_acc, fps_acc, res_labels, res_features, fps_labels, fps_features = run_ml_model()
         # Check if resolution accuracy exceeds accuracy%
-        if resolution_acc and resolution_acc > accuracy and not resolution_above_accuracy:
+        if resolution_acc and resolution_acc > 80 and not resolution_above_accuracy:
             if res_labels and res_features:
                 save_to_csv(res_labels[0], 'resolution_labels.csv')
                 save_to_csv(res_features[0], 'resolution_features.csv')
@@ -43,7 +44,7 @@ def main():
             resolution_above_accuracy = True
 
         # Check if FPS accuracy exceeds accuracy%
-        if fps_acc and fps_acc > accuracy and not fps_above_accuracy:
+        if fps_acc and fps_acc > 80 and not fps_above_accuracy:
             if fps_labels and fps_features:
                 save_to_csv(fps_labels[0], 'fps_labels.csv')
                 save_to_csv(fps_features[0], 'fps_features.csv')
@@ -52,3 +53,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    os.system("/home/best/miniconda3/bin/python /home/best/Desktop/EEE4022S/scripts/overall_script.py")

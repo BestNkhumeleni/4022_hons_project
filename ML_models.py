@@ -173,7 +173,7 @@ def random_forest_model_resolution(X,y, testing_data):
     predicted_label = label_encoder.inverse_transform(predicted_resolution)
 
     # joblib.dump(model, 'resolution_model.pkl')
-    if accuracy_score(y_test, y_pred)*100 > 85:
+    if accuracy_score(y_test, y_pred)*100 > 80:
         with open('resolution_model.pkl', 'wb') as f:
             pickle.dump(model, f)
         

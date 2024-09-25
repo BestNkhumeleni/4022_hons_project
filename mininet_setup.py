@@ -100,10 +100,14 @@ def setup_mininet_and_transmit(video_file, stream_number):
     
     # Move the capture file to the folder
     destination_path = "/home/best/Desktop/EEE4022S/Data/pcap_files"
-    
-    
-    shutil.move(capture_file, destination_path)
-    info(f"*** Moved capture file to {destination_path} ***\n")
+    file_path = os.path.join(destination_path, capture_file)
+    if os.path.isfile(file_path):
+        if check_file_size(file_path) < 1:
+            print(f"File {file_path} is less than 1MB, deleting and recapturing...")
+            os.remove(file_path)
+    else:
+        shutil.move(capture_file, destination_path)
+        info(f"*** Moved capture file to {destination_path} ***\n")
     
     # Stop the network
     net.stop()
@@ -159,15 +163,14 @@ if __name__ == '__main__':
     # Loop through all the files in the directory
     for filename in os.listdir(directory):
         video_file = os.path.join(directory, filename)
-        
-        for stream_number in range(1, 4):
+        for stream_number in range(1, 5):
             check_and_recapture(destination_path, video_file, stream_number)
 
     for filename in os.listdir(destination_path):
         file = os.path.join(destination_path, filename)
         if os.path.isfile(file) and check_file_size(file) < 1:
             video_name = filename[:-5]
-            video_file = os.path.join(directory, video_name + ".mp4")
+            video_file = os.path.join(directory, video_name[:-2] + ".mp4")
             stream_number = int(video_name[-1:])
             print("Recapturing due to failure...")
             os.remove(file)

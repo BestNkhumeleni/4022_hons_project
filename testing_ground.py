@@ -51,10 +51,10 @@ def predict_from_csv(input_csv):
     return resolution_prediction, fps_prediction
 
 if __name__ == "__main__":
-    # Example usage, replace 'input_file.csv' with your actual CSV file
-    for filename in os.listdir("/home/best/Desktop/EEE4022S/Data/testing_data"):
-        print(filename)
-        predict_from_csv("/home/best/Desktop/EEE4022S/Data/testing_data/"+filename)
+    # # Example usage, replace 'input_file.csv' with your actual CSV file
+    # for filename in os.listdir("/home/best/Desktop/EEE4022S/Data/testing_data"):
+    #     print(filename)
+        predict_from_csv("/home/best/Desktop/EEE4022S/scripts/test_480p.csv")
 
     # predict_from_single_input("/home/best/Desktop/EEE4022S/Data/training_data/bold_colours_720p_30_3.csv")
 

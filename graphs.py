@@ -94,7 +94,7 @@ if __name__ == "__main__":
     time_values, qoe_values, resolution_values, fps_values = read_data(filename)
 
     # Replace with the correct single resolution and fps values
-    correct_resolution = 720  # Example: correct resolution
+    correct_resolution = 360  # Example: correct resolution
     correct_fps = 30  # Example: correct FPS
 
     create_graphs(time_values, qoe_values, resolution_values, fps_values, correct_resolution, correct_fps)
