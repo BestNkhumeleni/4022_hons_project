@@ -71,9 +71,9 @@ def extract_features(pcap_file):
                 
                 end_time = packet_time
 
-            # Exit early after 30 seconds
-            if math.trunc(packet_time - start_time) == 30:
-                break
+            # # Exit early after 30 seconds
+            # if math.trunc(packet_time - start_time) == 30:
+            #     break
         
         except AttributeError:
             continue  # Skip packets that don't have the required fields
@@ -99,7 +99,7 @@ def extract_features(pcap_file):
     
     
     if start_time and end_time:
-        duration = end_time - start_time
+        duration = total_packets * mean_interval
         bitrate = (total_bytes * 8) / duration  # bits per second
         csvstor = {
         'name': filename,
